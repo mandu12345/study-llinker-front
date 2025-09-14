@@ -1,77 +1,73 @@
-// src/pages/main/RecommendGroups.jsx
 import React, { useState } from "react";
-
-const dummyRecommend = [
-  { id: 201, title: "알고리즘 스터디", leader: "이영희", members: 4, max: 10, date: new Date(2025, 8, 10), location: "101호", content: "알고리즘 문제 풀이 및 토론" },
-  { id: 202, title: "Node.js 스터디", leader: "최강민", members: 6, max: 10, date: new Date(2025, 8, 12), location: "202호", content: "Node.js 프로젝트 실습" },
-];
+import axios from "axios";
 
 const RecommendGroups = ({ onAddSchedule }) => {
-  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchRecommendations = () => {
+    if (!navigator.geolocation) {
+      alert("브라우저가 위치 정보를 지원하지 않습니다.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      setLoading(true);
+      try {
+        const res = await axios.get("http://localhost:8080/api/study-groups/recommend", {
+          params: { lat, lng, interest: "AI" }, // 관심사 선택 가능
+        });
+        setGroups(res.data);
+      } catch (err) {
+        console.error(err);
+        alert("추천 그룹을 가져오는 중 오류가 발생했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    });
+  };
 
   return (
     <div>
       <h3>추천 그룹</h3>
+      <button className="btn btn-primary mb-3" onClick={fetchRecommendations}>
+        {loading ? "불러오는 중..." : "내 위치 기반 추천 그룹 가져오기"}
+      </button>
+
       <div className="row">
-        {dummyRecommend.map((g) => (
-          <div key={g.id} className="col-md-6 mb-3">
+        {groups.map((g) => (
+          <div key={g.groupId} className="col-md-6 mb-3">
             <div className="card border-success shadow-sm">
               <div className="card-body">
                 <h5 className="card-title">{g.title}</h5>
-                <p className="card-text">리더: {g.leader}</p>
+                <p className="card-text">
+                  카테고리: {g.category} <br />
+                  거리: {g.distance.toFixed(2)} km
+                </p>
                 <button
                   className="btn btn-success btn-sm"
-                  onClick={() => setSelectedGroup(g)}
+                  onClick={() =>
+                    onAddSchedule({
+                      title: g.title,
+                      date: new Date(), // 백엔드에서 날짜를 보내면 그걸로
+                      leader: "미정",
+                      location: "추천 그룹 위치",
+                      content: g.category,
+                      lat: g.latitude,
+                      lng: g.longitude,
+                    })
+                  }
                 >
-                  참여 신청
+                  일정 추가
                 </button>
               </div>
             </div>
           </div>
         ))}
       </div>
-
-      {/* 상세정보 모달 */}
-      {selectedGroup && (
-        <div className="modal d-block" tabIndex="-1" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content" style={{ borderRadius: "12px" }}>
-              <div className="modal-header bg-success text-white">
-                <h5 className="modal-title">{selectedGroup.title} 상세 정보</h5>
-                <button
-                  type="button"
-                  className="btn-close btn-close-white"
-                  onClick={() => setSelectedGroup(null)}
-                />
-              </div>
-              <div className="modal-body">
-                <p>리더: {selectedGroup.leader}</p>
-                <p>날짜: {selectedGroup.date.toDateString()}</p>
-                <p>내용: {selectedGroup.content}</p>
-                <p>참여 인원: {selectedGroup.members}/{selectedGroup.max}</p>
-                <p>장소: {selectedGroup.location}</p>
-              </div>
-              <div className="modal-footer">
-                <button
-                  className="btn btn-success btn-sm"
-                  onClick={() => {
-                    onAddSchedule(selectedGroup); // 메인페이지 일정 추가
-                    setSelectedGroup(null); // 모달 닫기
-                  }}
-                >
-                  신청하기
-                </button>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setSelectedGroup(null)}
-                >
-                  닫기
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
