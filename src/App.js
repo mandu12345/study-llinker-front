@@ -4,23 +4,33 @@ import { AuthProvider } from "./auth/AuthContext";
 import PrivateRoute from "./auth/PrivateRoute";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import MainPage from "./pages/MainPage";   // ⭐ MainPage로 교체
+import MainPage from "./pages/MainPage";
+import AdminPage from "./pages/AdminPage";
 
 function App() {
   return (
     <AuthProvider>
       <Router>
         <Routes>
-          <Route path="/" element={<Login />} />  
-          <Route path="/login" element={<Login />} />  
+          {/* 사용자 */}
+          <Route path="/" element={<Login />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-
-          {/* 메인페이지 */}
           <Route
             path="/main/*"
             element={
               <PrivateRoute>
                 <MainPage />
+              </PrivateRoute>
+            }
+          />
+
+          {/* 관리자 페이지 */}
+          <Route
+            path="/admin/*"
+            element={
+              <PrivateRoute>
+                <AdminPage />
               </PrivateRoute>
             }
           />

@@ -7,18 +7,21 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role");
     if (token) {
-      setUser({ token }); // 필요시 사용자 정보 디코딩
+      setUser({ token, role });
     }
   }, []);
 
-  const login = (token) => {
+  const login = (token, role) => {
     localStorage.setItem("token", token);
-    setUser({ token });
+    localStorage.setItem("role", role);
+    setUser({ token, role });
   };
 
   const logout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("role");
     setUser(null);
   };
 
@@ -28,4 +31,3 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
-

@@ -8,6 +8,8 @@ import "./Mainpage.css";
 import StudyList from "./main/StudyList";
 import JoinedGroups from "./main/JoinedGroups";
 import RecommendGroups from "./main/RecommendGroups";
+import UserBasicDashboard from "./main/UserBasicDashboard";
+import UserServiceDashboard from "./main/UserServiceDashboard";
 
 // 더미 일정 + 위치(좌표)
 const initialSchedules = [
@@ -255,6 +257,11 @@ useEffect(() => {
           <div className="col-3 bg-light vh-100 p-3 border-right">
             <ul className="list-group list-group-flush">
               <li className="list-group-item">
+                <Link to="/main" className="nav-link">
+                  내 대시보드
+                </Link>
+              </li>
+              <li className="list-group-item">
                 <Link to="/main/list" className="nav-link">
                   스터디 목록
                 </Link>
@@ -269,10 +276,15 @@ useEffect(() => {
                   추천 그룹
                 </Link>
               </li>
+              <li className="list-group-item">
+                <Link to="/main/service-dashboard" className="nav-link">
+                  서비스 대시보드
+                </Link>
+              </li>
             </ul>
           </div>
 
-          {/* 달력 + 지도 */}
+          {/* Content 영역 */}
           <div className="col-9 p-4">
             <div className="row">
               {/* 달력 */}
@@ -329,6 +341,7 @@ useEffect(() => {
 
             {/* 라우팅 컴포넌트 */}
             <Routes>
+              <Route index element={<UserBasicDashboard />} />
               <Route path="list" element={<StudyList />} />
               <Route
                 path="joined"
@@ -338,6 +351,7 @@ useEffect(() => {
                 path="recommend"
                 element={<RecommendGroups onAddSchedule={handleAddSchedule} />}
               />
+              <Route path="service-dashboard" element={<UserServiceDashboard />} />
             </Routes>
           </div>
         </div>
