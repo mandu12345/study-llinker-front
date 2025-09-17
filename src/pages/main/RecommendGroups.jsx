@@ -17,15 +17,29 @@ const RecommendGroups = ({ onAddSchedule }) => {
           try {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
+            console.log("userLat:", lat, "userLon:", lng);
             // 백엔드 API 호출 (예: GET /api/study-groups/recommend?lat=...&lng=...)
+            const interestTags = "Java,Spring";
             const res = await axios.get("http://localhost:8080/api/study-groups/recommend", {
-              params: { lat, lng },
+              params: { userLat: lat, userLon: lng, interestTags }, //interestTags 필수
             });
             setGroups(res.data); // API 결과 배열 저장
           } catch (err) {
-            console.error(err);
-            setError("추천 그룹을 불러오는 중 오류가 발생했습니다.");
-          } finally {
+             if (err.response) {
+    // 서버가 응답은 했는데 오류 상태코드일 때 (404, 500 등)
+    console.log("status:", err.response.status);
+    console.log("data:", err.response.data);
+  } else if (err.request) {
+    // 요청은 갔는데 응답이 아예 없을 때
+    console.log("No response received:", err.request);
+  } else {
+    // 요청도 못 보냈을 때 (CORS 등)
+    console.log("Error", err.message);
+  }
+
+  setError("추천 그룹을 불러오는 중 오류가 발생했습니다.");
+}
+ finally {
             setLoading(false);
           }
         },

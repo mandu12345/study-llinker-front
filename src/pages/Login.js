@@ -11,7 +11,7 @@ const Login = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // ✅ 더미 로그인 처리
+    // 더미 로그인 처리
     if (username === "admin" && password === "1234") {
       login("dummy-admin-token", "ADMIN");   // 관리자 로그인
       navigate("/admin/dashboard");
@@ -51,6 +51,16 @@ const Login = () => {
           로그인
         </button>
       </form>
+
+      <div className="mt-3">
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => navigate("/register")}
+        >
+          회원가입
+        </button>
+      </div>
     </div>
   );
 };

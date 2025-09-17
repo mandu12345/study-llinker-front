@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import MainPage from "./pages/MainPage";
 import AdminPage from "./pages/AdminPage";
+import Profile from "./pages/Profile";
 
 function App() {
   return (
@@ -31,6 +32,14 @@ function App() {
             element={
               <PrivateRoute>
                 <AdminPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <Profile />
               </PrivateRoute>
             }
           />

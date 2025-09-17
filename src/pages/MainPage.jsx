@@ -281,6 +281,11 @@ useEffect(() => {
                   서비스 대시보드
                 </Link>
               </li>
+              <li className="list-group-item">
+                <Link to="/profile" className="nav-link">
+                  내 프로필
+                </Link>
+              </li>
             </ul>
           </div>
 
