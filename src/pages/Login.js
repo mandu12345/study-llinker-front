@@ -1,6 +1,7 @@
 import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../auth/AuthContext";
+import api from "../api/axios";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -8,17 +9,24 @@ const Login = () => {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 더미 로그인 처리
-    if (username === "admin" && password === "1234") {
-      login("dummy-admin-token", "ADMIN");   // 관리자 로그인
-      navigate("/admin/dashboard");
-    } else if (username === "testuser" && password === "1234") {
-      login("dummy-user-token", "USER");     // 일반 사용자 로그인
-      navigate("/main");
-    } else {
+    try {
+      // 백엔드 로그인 API 호출
+      const res = await api.post("/auth/login", { username, password });
+
+      // 응답에서 JWT 토큰 꺼내기
+      const token = res.data.token;
+
+      if (token) {
+        login(token); // AuthContext + localStorage 저장
+        navigate("/main"); // 메인 페이지로 이동
+      } else {
+        alert("로그인 실패: 토큰이 없습니다.");
+      }
+    } catch (err) {
+      console.error("로그인 오류:", err);
       alert("아이디/비밀번호가 올바르지 않습니다.");
     }
   };
