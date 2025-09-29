@@ -8,11 +8,15 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  // 로그인·회원가입 요청에는 토큰 붙이지 않기
+  if (!config.url.includes("/auth/login") && !config.url.includes("/auth/register")) {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });
+
 
 export default api;
