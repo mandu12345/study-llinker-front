@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from "react";
 import api from "../api/axios";
 import Map from "../components/Map";
+import { useNavigate } from "react-router-dom";
+
 
 const Register = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const navigate = useNavigate();
 
   // 관심 태그
   const [interestTags, setInterestTags] = useState([]);
@@ -42,32 +45,32 @@ const Register = () => {
 
   // 회원가입 제출
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!username || !password || !email || !name) {
-      alert("모든 필드를 입력해주세요.");
-      return;
-    }
+  if (!username || !password || !email || !name) {
+    alert("모든 필드를 입력해주세요.");
+    return;
+  }
 
-    try {
-      const res = await api.post("/auth/register", {
-        username,
-        password,
-        email,
-        name,
-        interest_tags: interestTags,
-        latitude,
-        longitude,
-      });
+  try {
+    const res = await api.post("/auth/register", {
+      username,
+      password,
+      email,
+      name,
+      interest_tags: interestTags,
+      latitude,
+      longitude,
+    });
 
-      console.log("회원가입 응답:", res.data);
-      alert("회원가입 성공!");
-      window.location.href = "/login";
-    } catch (err) {
-      console.error(err);
-      alert("회원가입 실패! 이미 존재하는 아이디인지 확인하세요.");
-    }
-  };
+    console.log("회원가입 응답:", res.data);
+    alert("회원가입 성공!");
+    navigate("/login"); // ✅
+  } catch (err) {
+    console.error(err);
+    alert("회원가입 실패! 이미 존재하는 아이디인지 확인하세요.");
+  }
+};
 
   return (
     <div className="container mt-4">

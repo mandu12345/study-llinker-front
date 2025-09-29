@@ -227,12 +227,16 @@ useEffect(() => {
   return (
     <div className="mainpage-wrapper">
       {/* Navbar */}
-      <nav className="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+      <nav className="navbar navbar-expand-lg navbar-dark shadow-sm navbar-custom">
         <a className="navbar-brand" href="/">
-          StudyApp
+        <img 
+           src="/logo.png"   // public 폴더에 있는 이미지 경로
+           alt="StudyApp Logo"
+           style={{ height: "70px", marginLeft: "30px" }}
+        />
         </a>
         <div className="ml-auto d-flex align-items-center">
-          <span className="mr-4">{username}님</span>
+          <span className="mr-4 me-3">{username}님</span>
           <button
             className="btn btn-sm btn-outline-light position-relative"
             onClick={() => setShowNotifications(true)}
