@@ -3,6 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../auth/AuthContext";
 import api from "../api/axios";
 
+// 더미 JWT 토큰 생성 함수
+function createDummyToken(role) {
+  const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const payload = btoa(JSON.stringify({ userId: "0", role }));
+  const signature = "dummysignature";
+  return `${header}.${payload}.${signature}`;
+}
+
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -12,15 +20,24 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // 개발자용 슈퍼유저 계정 (백엔드 없이 바로 로그인 가능)
+    if (username === "superuser" && password === "1234") {
+      const dummyToken = createDummyToken("ADMIN");
+      login(dummyToken, "ADMIN");
+      alert("슈퍼유저로 로그인했습니다.");
+      navigate("/main");
+      return;
+    }
+
     try {
-      // 백엔드 로그인 API 호출
+      // 실제 백엔드 로그인 API 호출
       const res = await api.post("/auth/login", { username, password });
 
       // 응답에서 JWT 토큰 꺼내기
       const token = res.data.token;
 
       if (token) {
-        login(token); // AuthContext + localStorage 저장
+        login(token, "USER"); // 일반 유저 로그인
         navigate("/main"); // 메인 페이지로 이동
       } else {
         alert("로그인 실패: 토큰이 없습니다.");
