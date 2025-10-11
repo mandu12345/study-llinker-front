@@ -2,7 +2,7 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL:
-    window.location.hostname === "localhost"
+    window.location.hostname === "development"
       ? "http://localhost:8080/api"     // 로컬 개발용
       : "http://gachon.studylink.click/api", // 배포용
 });
