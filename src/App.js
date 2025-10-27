@@ -6,7 +6,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import MainPage from "./pages/MainPage";
 import AdminPage from "./pages/AdminPage";
-import Profile from "./pages/Profile";
+import Profile from "./pages/main/profile";
 import Board from "./pages/main/Board"; 
 import BoardWrite from "./pages/main/BoardWrite";
 

@@ -242,7 +242,7 @@ const MainPage = () => {
               <li className="list-group-item"><Link to="/main/recommend" className="nav-link">추천 그룹</Link></li>
               <li className="list-group-item"><Link to="/main/service-dashboard" className="nav-link">서비스 대시보드</Link></li>
               <li className="list-group-item"><Link to="/main/board" className="nav-link">게시판</Link></li>
-              <li className="list-group-item"><Link to="/profile" className="nav-link">내 프로필</Link></li>
+              <li className="list-group-item"><Link to="/main/profile" className="nav-link">내 프로필</Link></li>
             </ul>
           </div>
 

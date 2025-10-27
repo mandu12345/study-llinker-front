@@ -2,7 +2,7 @@ import React, { useState } from "react";
 // import React, { useState, useEffect } from "react";
 // import api from "../api/axios";
 // -> API 연결시
-import Map from "../components/Map";
+import Map from "../../components/Map";
 
 const Profile = () => {
   const [profile, setProfile] = useState({
