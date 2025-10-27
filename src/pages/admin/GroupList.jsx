@@ -1,6 +1,10 @@
 // src/pages/admin/GroupList.jsx
 
 import React, { useState } from "react";
+import GroupEditModal from "./GroupEditModal"; // 그룹 수정 모달
+import GroupDeleteModal from "./GroupDeleteModal"; // 그룹 삭제 모달
+import GroupStatusChangeModal from "./GroupStatusChangeModal"; // 그룹 상태 변경 모달
+import StatsModal from './StatsModal'; // 통계 모달 (추가)
 
 const dummyGroups = [
   { id: 1, title: "Java 스터디", leader: "홍길동", members: 5, max: 10, status: "Pending", category: "IT" },
@@ -12,49 +16,120 @@ const dummyGroups = [
 const GroupList = () => {
   const [groups, setGroups] = useState(dummyGroups);
 
-  const handleDelete = (id) => {
-    if (window.confirm("이 그룹을 삭제하시겠습니까? (F-S-GM-005)")) {
-      setGroups(groups.filter((g) => g.id !== id));
+  // 모달 상태 관리
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false); // 📊 통계 모달 상태 추가
+
+  const [currentGroup, setCurrentGroup] = useState(null); 
+  const [targetAction, setTargetAction] = useState(null); 
+
+  // ------------------------------------------------
+  // 🗑️ 삭제 로직
+  // ------------------------------------------------
+  const handleDeleteClick = (group) => {
+    setCurrentGroup(group);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = (id) => {
+    setGroups(groups.filter((g) => g.id !== id));
+    setIsDeleteModalOpen(false);
+    alert(`✅ 그룹 ${id}번이 영구 삭제되었습니다.`);
+  };
+
+  // ------------------------------------------------
+  // 📝 수정 로직
+  // ------------------------------------------------
+  const handleEditClick = (group) => {
+    setCurrentGroup(group);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSave = (updatedGroup) => {
+    setGroups(groups.map((g) => (g.id === updatedGroup.id ? updatedGroup : g)));
+    setIsEditModalOpen(false);
+    alert(`✅ 그룹 [${updatedGroup.title}] 정보가 수정되었습니다.`);
+  };
+
+  // ⚠️ 상태 변경 로직
+  const handleStatusChangeClick = (group, action) => {
+    setCurrentGroup(group);
+    setTargetAction(action);
+    setIsStatusModalOpen(true);
+  };
+
+  const handleStatusChangeConfirm = (id, action) => {
+    let message = '';
+    let updatedGroups = groups;
+
+    if (action === 'Approve' || action === 'Activate') {
+      message = '활성화';
+      updatedGroups = groups.map((g) => (g.id === id ? { ...g, status: 'Active' } : g));
+    } else if (action === 'Deactivate') {
+      message = '비활성화';
+      updatedGroups = groups.map((g) => (g.id === id ? { ...g, status: 'Inactive' } : g));
+    } else if (action === 'Reject') {
+      message = '반려 및 삭제';
+      updatedGroups = groups.filter((g) => g.id !== id); 
     }
+
+    setGroups(updatedGroups);
+    setIsStatusModalOpen(false);
+    alert(`✅ 그룹 ${id}번이 [${message}] 처리되었습니다.`);
+  };
+
+  // F-S-GM-003: 상태에 따른 버튼 렌더링 로직
+  const renderStatusButtons = (group) => {
+    if (group.status === "Pending") {
+      return (
+        <>
+          <button className="btn btn-success btn-sm me-2" onClick={() => handleStatusChangeClick(group, 'Approve')}>승인</button>
+          <button className="btn btn-warning btn-sm me-2" onClick={() => handleStatusChangeClick(group, 'Reject')}>반려</button>
+        </>
+      );
+    } else if (group.status === "Active") {
+      return (
+        <button className="btn btn-warning btn-sm me-2" onClick={() => handleStatusChangeClick(group, 'Deactivate')}>비활성화</button>
+      );
+    } else if (group.status === "Inactive") {
+      return (
+        <button className="btn btn-success btn-sm me-2" onClick={() => handleStatusChangeClick(group, 'Activate')}>활성화</button>
+      );
+    }
+    return null;
   };
     
-    // F-S-GM-003: 그룹 상태 변경 (승인/반려/비활성화) 더미 함수
-    const handleStatusChange = (id, action) => {
-        if (action === 'Approve') {
-            alert(`F-S-GM-003: ${id}번 그룹을 승인(Active) 처리합니다.`);
-            setGroups(groups.map(g => g.id === id ? { ...g, status: 'Active' } : g));
-        } else if (action === 'Deactivate') {
-            alert(`F-S-GM-003: ${id}번 그룹을 비활성화(Inactive) 처리합니다.`);
-            setGroups(groups.map(g => g.id === id ? { ...g, status: 'Inactive' } : g));
-        } else if (action === 'Reject') {
-             alert(`F-S-GM-003: ${id}번 그룹을 반려(Reject) 처리합니다.`);
-             setGroups(groups.filter(g => g.id !== id)); // 반려 시 삭제로 처리한다고 가정
-        }
-    };
+  // 📊 통계 확인 버튼 클릭 이벤트 (모달 열기)
+  const handleStatsClick = () => {
+    setIsStatsModalOpen(true);
+  };
+
 
   return (
     <div>
-      <h2>📚 스터디 그룹 관리 (F-S-GM)</h2>
+      <h2>📚 스터디 그룹 관리 </h2>
 
-        {/* F-S-GM-001: 필터링 및 통계 UI 틀 추가 */}
-        <div className="d-flex justify-content-between align-items-center mb-3">
-             {/* F-S-GM-001: 필터링 */}
-            <input type="text" className="form-control w-25 me-2" placeholder="그룹명 검색 (F-S-GM-001)" />
-            {/* F-S-GM-006: 스터디 통계 확인 버튼 */}
-            <button className="btn btn-secondary" onClick={() => alert("F-S-GM-006: 그룹별 통계 (출석률 등) 대시보드 표시")}>
-                📊 통계 확인
-            </button>
-        </div>
+      {/* F-S-GM-001: 필터링 및 통계 UI 틀 추가 */}
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        {/* F-S-GM-001: 필터링 */}
+        <input type="text" className="form-control w-25 me-2" placeholder="그룹명 검색 " />
+        {/* F-S-GM-006: 스터디 통계 확인 버튼 */}
+        <button className="btn btn-secondary" onClick={handleStatsClick}>
+          📊 통계 확인
+        </button>
+      </div>
 
       <table className="table table-bordered">
         <thead>
           <tr>
             <th>ID</th>
-            <th>그룹명 (F-S-GM-002)</th>
-            <th>카테고리 (F-S-GM-001)</th>
+            <th>그룹명 </th>
+            <th>카테고리 </th>
             <th>리더</th>
             <th>인원</th>
-            <th>상태 (F-S-GM-003)</th>
+            <th>상태 </th>
             <th>액션</th>
           </tr>
         </thead>
@@ -68,23 +143,11 @@ const GroupList = () => {
               <td>{g.members}/{g.max}</td>
               <td>{g.status}</td>
               <td>
-                    {/* F-S-GM-002: 상세 조회/수정 버튼 */}
-                    <button className="btn btn-info btn-sm me-2" onClick={() => alert(`F-S-GM-002: ${g.title} 상세 정보 및 F-S-GM-004 수정 페이지로 이동`)}>
-                        상세/수정
-                    </button>
-                    
-                    {/* F-S-GM-003: 상태 변경 버튼 */}
-                    {g.status === 'Pending' && (
-                        <>
-                            <button className="btn btn-success btn-sm me-2" onClick={() => handleStatusChange(g.id, 'Approve')}>승인</button>
-                            <button className="btn btn-warning btn-sm me-2" onClick={() => handleStatusChange(g.id, 'Reject')}>반려</button>
-                        </>
-                    )}
-                    {g.status === 'Active' && (
-                        <button className="btn btn-warning btn-sm me-2" onClick={() => handleStatusChange(g.id, 'Deactivate')}>비활성화</button>
-                    )}
-                    
-                <button className="btn btn-danger btn-sm" onClick={() => handleDelete(g.id)}>
+                <button className="btn btn-info btn-sm me-2" onClick={() => handleEditClick(g)}>
+                  상세/수정
+                </button>
+                {renderStatusButtons(g)}
+                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteClick(g)}>
                   삭제
                 </button>
               </td>
@@ -92,6 +155,49 @@ const GroupList = () => {
           ))}
         </tbody>
       </table>
+
+      {/* ==================================== */}
+      {/* 💡 모달 렌더링 영역 */}
+      {/* ==================================== */}
+
+      {/* 그룹 정보 수정 모달 (F-S-GM-002) */}
+      {isEditModalOpen && currentGroup && (
+        <GroupEditModal
+          show={isEditModalOpen}
+          group={currentGroup}
+          onSave={handleSave}
+          onClose={() => setIsEditModalOpen(false)}
+        />
+      )}
+
+      {/* 그룹 삭제 확인 모달 */}
+      {isDeleteModalOpen && currentGroup && (
+        <GroupDeleteModal
+          show={isDeleteModalOpen}
+          group={currentGroup}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setIsDeleteModalOpen(false)}
+        />
+      )}
+
+      {/* 그룹 상태 변경 확인 모달 */}
+      {isStatusModalOpen && currentGroup && targetAction && (
+        <GroupStatusChangeModal
+          show={isStatusModalOpen}
+          group={currentGroup}
+          targetAction={targetAction}
+          onConfirm={handleStatusChangeConfirm}
+          onClose={() => setIsStatusModalOpen(false)}
+        />
+      )}
+      
+      {/* 📊 통계 확인 모달 추가 */}
+      {isStatsModalOpen && (
+        <StatsModal
+          show={isStatsModalOpen}
+          onClose={() => setIsStatsModalOpen(false)}
+        />
+      )}
     </div>
   );
 };

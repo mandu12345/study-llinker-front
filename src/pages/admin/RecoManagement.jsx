@@ -20,16 +20,16 @@ const RecoManagement = () => {
 
     return (
         <div className="reco-management">
-            <h2>💡 추천 관리 (F-S-RM)</h2>
+            <h2>💡 추천 관리 </h2>
 
             {/* F-S-RM-001: 추천 알고리즘 설정 */}
             <div className="card mb-4">
                 <div className="card-header">추천 알고리즘 설정</div>
                 <div className="card-body">
                     <p>현재 적용 알고리즘: <strong>{algorithm}</strong></p>
-                    <label className="form-label">새 알고리즘 선택 (F-S-RM-001)</label>
+                    <label className="form-label">새 알고리즘 선택 </label>
                     <select className="form-select w-50" value={algorithm} onChange={handleAlgorithmChange}>
-                        <option value="CF_V1">협업 필터링 (CF_V1)</option>
+                        <option value="CF_V1">협업 필터링 </option>
                         <option value="Hybrid_V2">하이브리드 모델 (Hybrid_V2)</option>
                         <option value="Popularity">인기 기반 (Popularity)</option>
                     </select>
@@ -39,7 +39,7 @@ const RecoManagement = () => {
             {/* F-S-RM-002: 추천 결과 모니터링 */}
             <div className="card">
                 <div className="card-header d-flex justify-content-between align-items-center">
-                    추천 결과 모니터링 (F-S-RM-002)
+                    추천 결과 모니터링 
                     <button className="btn btn-sm btn-outline-secondary" onClick={handleMonitorRefresh}>
                         새로 고침
                     </button>

@@ -41,14 +41,14 @@ const SystemManagement = () => {
 
             {/* 문의 사항 관리 영역 */}
             <div className="card mb-4">
-                <div className="card-header">고객 문의 사항 (F-S-SM)</div>
+                <div className="card-header">고객 문의 사항 </div>
                 <div className="card-body">
                     <table className="table table-sm table-striped">
                         <thead>
                             <tr>
                                 <th>ID</th>
                                 <th>사용자</th>
-                                <th>제목 (F-S-SM-001)</th>
+                                <th>제목</th>
                                 <th>상태</th>
                                 <th>액션</th>
                             </tr>
@@ -83,10 +83,10 @@ const SystemManagement = () => {
                 <div className="card-header">시스템 운영 (F-S-IM)</div>
                 <div className="card-body d-flex flex-column">
                     <button className="btn btn-warning mb-3" onClick={handleBackup}>
-                        백업 스냅샷 관리 (F-S-IM-001)
+                        백업 스냅샷 관리 
                     </button>
                     <button className="btn btn-danger" onClick={handleCacheInvalidate}>
-                        캐시 무효화 버튼 (F-S-IM-002)
+                        캐시 무효화 버튼
                     </button>
                 </div>
             </div>
