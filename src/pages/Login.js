@@ -29,6 +29,16 @@ const Login = () => {
       return;
     }
 
+    // 관리자용 슈퍼유저 계정 
+    if (username === "admin" && password === "1234") {
+      const dummyToken = createDummyToken("ADMIN"); // ADMIN 권한 부여
+      login(dummyToken, "ADMIN");
+      alert("관리자(ADMIN)로 로그인했습니다. 관리자 페이지로 이동합니다.");
+      // App.js에 정의된 관리자 경로(/admin)로 이동
+      navigate("/admin"); 
+      return;
+    }
+
     try {
       // 실제 백엔드 로그인 API 호출
       const res = await api.post("/auth/login", { username, password });
