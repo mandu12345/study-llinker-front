@@ -1,9 +1,12 @@
+// src/pages/Login.jsx
+
 import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../auth/AuthContext";
 import api from "../api/axios";
+import AlertModal from "./AlertModal"; // 새로 만든 모달 컴포넌트 import
 
-// 더미 JWT 토큰 생성 함수
+// 더미 JWT 토큰 생성 함수 (유지)
 function createDummyToken(role) {
   const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const payload = btoa(JSON.stringify({ userId: "0", role }));
@@ -17,27 +20,56 @@ const Login = () => {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
+  // 모달 상태 관리 추가
+  const [modal, setModal] = useState({
+      show: false,
+      title: '',
+      message: '',
+      type: '', // success, error, admin
+      redirect: null, // 모달 닫기 후 리다이렉트 경로 저장
+  });
+
+  // 모달 닫기 핸들러
+  const handleCloseModal = () => {
+      setModal({ show: false, title: '', message: '', type: '', redirect: null });
+      if (modal.redirect) {
+          navigate(modal.redirect);
+      }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 개발자용 슈퍼유저 계정 (백엔드 없이 바로 로그인 가능)
+    // ----------------------------------------------------
+    // 💡 슈퍼유저 로그인 로직 (Alert -> Modal)
+    // ----------------------------------------------------
     if (username === "superuser" && password === "1234") {
-      const dummyToken = createDummyToken("ADMIN");
-      login(dummyToken, "ADMIN");
-      alert("슈퍼유저로 로그인했습니다.");
-      navigate("/main");
-      return;
+        const dummyToken = createDummyToken("ADMIN");
+        login(dummyToken, "ADMIN");
+        setModal({
+            show: true,
+            title: "로그인 성공",
+            message: "슈퍼유저로 로그인했습니다.",
+            type: "success",
+            redirect: "/main"
+        });
+        return;
     }
 
-    // 관리자용 슈퍼유저 계정 
+    // 💡 관리자용 슈퍼유저 로그인 로직 (Alert -> Modal)
     if (username === "admin" && password === "1234") {
-      const dummyToken = createDummyToken("ADMIN"); // ADMIN 권한 부여
-      login(dummyToken, "ADMIN");
-      alert("관리자(ADMIN)로 로그인했습니다. 관리자 페이지로 이동합니다.");
-      // App.js에 정의된 관리자 경로(/admin)로 이동
-      navigate("/admin"); 
-      return;
+        const dummyToken = createDummyToken("ADMIN"); 
+        login(dummyToken, "ADMIN");
+        setModal({
+            show: true,
+            title: "관리자 로그인 성공",
+            message: "관리자 페이지로 이동합니다. 시스템 관리 권한이 부여되었습니다.",
+            type: "admin",
+            redirect: "/admin"
+        });
+        return;
     }
+    // ----------------------------------------------------
 
     try {
       // 실제 백엔드 로그인 API 호출
@@ -48,13 +80,31 @@ const Login = () => {
 
       if (token) {
         login(token, "USER"); // 일반 유저 로그인
-        navigate("/main"); // 메인 페이지로 이동
+        setModal({
+            show: true,
+            title: "로그인 성공",
+            message: "환영합니다! 메인 페이지로 이동합니다.",
+            type: "success",
+            redirect: "/main"
+        });
       } else {
-        alert("로그인 실패: 토큰이 없습니다.");
+        setModal({
+            show: true,
+            title: "로그인 실패",
+            message: "로그인에 실패했습니다: 서버로부터 유효한 토큰을 받지 못했습니다.",
+            type: "error",
+            redirect: null
+        });
       }
     } catch (err) {
       console.error("로그인 오류:", err);
-      alert("아이디/비밀번호가 올바르지 않습니다.");
+      setModal({
+            show: true,
+            title: "로그인 오류",
+            message: "아이디 또는 비밀번호가 올바르지 않습니다.",
+            type: "error",
+            redirect: null
+        });
     }
   };
 
@@ -96,6 +146,15 @@ const Login = () => {
           회원가입
         </button>
       </div>
+
+      {/* 모달 렌더링 */}
+      <AlertModal
+          show={modal.show}
+          title={modal.title}
+          message={modal.message}
+          type={modal.type}
+          onClose={handleCloseModal}
+      />
     </div>
   );
 };

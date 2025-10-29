@@ -20,10 +20,9 @@ const GroupList = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
-  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false); // 📊 통계 모달 상태 추가
-
-  const [currentGroup, setCurrentGroup] = useState(null); 
-  const [targetAction, setTargetAction] = useState(null); 
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+  const [currentGroup, setCurrentGroup] = useState(null);
+  const [targetAction, setTargetAction] = useState(null);
 
   // ------------------------------------------------
   // 🗑️ 삭제 로직
@@ -53,7 +52,7 @@ const GroupList = () => {
     alert(`✅ 그룹 [${updatedGroup.title}] 정보가 수정되었습니다.`);
   };
 
-  // ⚠️ 상태 변경 로직
+  // ⚙️ 상태 변경 로직
   const handleStatusChangeClick = (group, action) => {
     setCurrentGroup(group);
     setTargetAction(action);
@@ -72,7 +71,7 @@ const GroupList = () => {
       updatedGroups = groups.map((g) => (g.id === id ? { ...g, status: 'Inactive' } : g));
     } else if (action === 'Reject') {
       message = '반려 및 삭제';
-      updatedGroups = groups.filter((g) => g.id !== id); 
+      updatedGroups = groups.filter((g) => g.id !== id);
     }
 
     setGroups(updatedGroups);
@@ -80,7 +79,21 @@ const GroupList = () => {
     alert(`✅ 그룹 ${id}번이 [${message}] 처리되었습니다.`);
   };
 
-  // F-S-GM-003: 상태에 따른 버튼 렌더링 로직
+  // ------------------------------------------------
+  // 🌐 상태 한글 변환 함수
+  // ------------------------------------------------
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case "Pending": return "대기중";
+      case "Active": return "활성";
+      case "Inactive": return "비활성";
+      default: return status;
+    }
+  };
+
+  // ------------------------------------------------
+  // F-S-GM-003: 상태에 따른 버튼 렌더링
+  // ------------------------------------------------
   const renderStatusButtons = (group) => {
     if (group.status === "Pending") {
       return (
@@ -100,36 +113,34 @@ const GroupList = () => {
     }
     return null;
   };
-    
-  // 📊 통계 확인 버튼 클릭 이벤트 (모달 열기)
+
+  // 📊 통계 확인 버튼 클릭 이벤트
   const handleStatsClick = () => {
     setIsStatsModalOpen(true);
   };
-
 
   return (
     <div>
       <h2>📚 스터디 그룹 관리 </h2>
 
-      {/* F-S-GM-001: 필터링 및 통계 UI 틀 추가 */}
+      {/* 필터 + 통계 버튼 */}
       <div className="d-flex justify-content-between align-items-center mb-3">
-        {/* F-S-GM-001: 필터링 */}
         <input type="text" className="form-control w-25 me-2" placeholder="그룹명 검색 " />
-        {/* F-S-GM-006: 스터디 통계 확인 버튼 */}
         <button className="btn btn-secondary" onClick={handleStatsClick}>
           📊 통계 확인
         </button>
       </div>
 
+      {/* 그룹 테이블 */}
       <table className="table table-bordered">
         <thead>
           <tr>
             <th>ID</th>
-            <th>그룹명 </th>
-            <th>카테고리 </th>
+            <th>그룹명</th>
+            <th>카테고리</th>
             <th>리더</th>
             <th>인원</th>
-            <th>상태 </th>
+            <th>상태</th>
             <th>액션</th>
           </tr>
         </thead>
@@ -141,7 +152,19 @@ const GroupList = () => {
               <td>{g.category}</td>
               <td>{g.leader}</td>
               <td>{g.members}/{g.max}</td>
-              <td>{g.status}</td>
+              <td>
+                <span
+                  className={
+                    g.status === "Pending"
+                      ? "text-secondary"
+                      : g.status === "Active"
+                      ? "text-success"
+                      : "text-muted"
+                  }
+                >
+                  {getStatusLabel(g.status)}
+                </span>
+              </td>
               <td>
                 <button className="btn btn-info btn-sm me-2" onClick={() => handleEditClick(g)}>
                   상세/수정
@@ -156,11 +179,7 @@ const GroupList = () => {
         </tbody>
       </table>
 
-      {/* ==================================== */}
-      {/* 💡 모달 렌더링 영역 */}
-      {/* ==================================== */}
-
-      {/* 그룹 정보 수정 모달 (F-S-GM-002) */}
+      {/* 모달 영역 */}
       {isEditModalOpen && currentGroup && (
         <GroupEditModal
           show={isEditModalOpen}
@@ -170,7 +189,6 @@ const GroupList = () => {
         />
       )}
 
-      {/* 그룹 삭제 확인 모달 */}
       {isDeleteModalOpen && currentGroup && (
         <GroupDeleteModal
           show={isDeleteModalOpen}
@@ -180,7 +198,6 @@ const GroupList = () => {
         />
       )}
 
-      {/* 그룹 상태 변경 확인 모달 */}
       {isStatusModalOpen && currentGroup && targetAction && (
         <GroupStatusChangeModal
           show={isStatusModalOpen}
@@ -191,7 +208,6 @@ const GroupList = () => {
         />
       )}
       
-      {/* 📊 통계 확인 모달 추가 */}
       {isStatsModalOpen && (
         <StatsModal
           show={isStatsModalOpen}
