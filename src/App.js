@@ -48,7 +48,7 @@ function App() {
           {/* 🔹 관리자 메인 (AdminPage 내부 탭 구성) */}
           {/* ======================= */}
           <Route
-            path="/admin/*"
+            path="/admin/*"  // ✅ ★ 여기 반드시 /* 추가해야 SystemManagement 하위 라우트 렌더링됨
             element={
               <PrivateRoute>
                 <AdminPage />

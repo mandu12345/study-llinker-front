@@ -72,7 +72,7 @@ const AdminPage = () => {
               {/* 추가된 라우트 */}
               <Route path="board/*" element={<BoardManagement />} />
               <Route path="recommendation" element={<RecoManagement />} />
-              <Route path="system" element={<SystemManagement />} />
+              <Route path="system/*" element={<SystemManagement />} />
               
               {/* 기본 라우트: /admin 접근 시 대시보드 표시 */}
               <Route path="/" element={<OpsChart />} />
