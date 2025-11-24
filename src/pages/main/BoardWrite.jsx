@@ -26,10 +26,14 @@ const BoardWrite = ({ defaultType }) => {
     setLatitude(lat);
     setLongitude(lng);
 
-    // 카카오 좌표 → 주소 변환
+    if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services) {
+      console.error("Kakao Maps 서비스가 로드되지 않았습니다.");
+      return;
+    }
+
     const geocoder = new window.kakao.maps.services.Geocoder();
     geocoder.coord2RegionCode(lng, lat, (result, status) => {
-      if (status === window.kakao.maps.services.Status.OK) {
+      if (status === window.kakao.maps.services.Status.OK && result[0]) {
         const region = result[0];
         const fullAddress = `${region.region_1depth_name} ${region.region_2depth_name} ${region.region_3depth_name}`;
         setAddress(fullAddress);
@@ -41,6 +45,11 @@ const BoardWrite = ({ defaultType }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!userId) {
+      alert("로그인 정보가 없습니다. 다시 로그인 해주세요.");
+      return;
+    }
+
     // 유효성 검사
     if (!title.trim() || !content.trim()) {
       alert("제목과 내용을 모두 입력하세요.");
@@ -50,34 +59,50 @@ const BoardWrite = ({ defaultType }) => {
       alert("제목은 50자 이내로 입력하세요.");
       return;
     }
-    if (content.length > 2000) {
-      alert("내용은 2000자 이하로 입력하세요.");
-      return;
-    }
 
-    // 후기 게시판일 때 평점 필수
-    if (type === "REVIEW" && (rating < 1 || rating > 5)) {
-      alert("후기 평점은 1~5점 사이로 입력하세요.");
-      return;
-    }
-    if (type === "REVIEW" && content.length > 500) {
-      alert("후기 내용은 500자 이내로 입력하세요.");
-      return;
+    if (type === "REVIEW") {
+      if (content.length > 500) {
+        alert("후기 내용은 500자 이내로 작성해주세요.");
+        return;
+      }
+      if (rating < 1 || rating > 5) {
+        alert("후기 평점은 1~5점 사이로 입력하세요.");
+        return;
+      }
+    } else {
+      if (content.length > 2000) {
+        alert("게시글 내용은 2000자 이하로 작성 가능합니다.");
+        return;
+      }
     }
 
     try {
-      await api.post(`/study-posts?leaderId=${userId}`, {
-        title,
-        content,
-        type,
-        rating: type === "REVIEW" ? rating : null,
-        latitude,
-        longitude,
-        location: address || null,
-      });
+      // 1️⃣ 먼저 게시글 생성 (FREE / REVIEW 공통)
+      const postRes = await api.post(
+        `/study-posts?leaderId=${userId}`,
+        {
+          title,
+          content,
+          type, // 'FREE' | 'STUDY' | 'REVIEW'
+          latitude,
+          longitude,
+          location: address || null,
+        }
+      );
 
-      // 성공 메시지 구분
+      const postData = postRes.data || {};
+      const postId = postData.postId || postData.post_id || postData.id;
+
+      if (!postId) {
+        throw new Error("게시글 ID를 가져오지 못했습니다.");
+      }
+
+      // 2️⃣ REVIEW 타입인 경우 → 리뷰 별도 생성
       if (type === "REVIEW") {
+        await api.post(`/study-posts/${postId}/reviews`, {
+          rating,
+          content, // 리뷰 내용 (게시글 내용과 동일하게 사용)
+        });
         alert("후기 등록이 완료되었습니다.");
       } else {
         alert("게시글이 성공적으로 등록되었습니다.");
@@ -90,9 +115,10 @@ const BoardWrite = ({ defaultType }) => {
       setLatitude(null);
       setLongitude(null);
       setAddress("");
+      setType(defaultType || "FREE");
     } catch (err) {
-      console.error(err);
-      alert("글 작성 실패");
+      console.error("글 작성 실패:", err);
+      alert("글 작성에 실패했습니다. 잠시 후 다시 시도해주세요.");
     }
   };
 
@@ -138,6 +164,7 @@ const BoardWrite = ({ defaultType }) => {
           >
             <option value="FREE">자유게시판</option>
             <option value="REVIEW">스터디 리뷰</option>
+            {/* 나중에 필요하면 STUDY 타입도 추가 가능 */}
           </select>
         </div>
 

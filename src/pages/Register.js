@@ -65,7 +65,7 @@ const Register = () => {
 
     console.log("회원가입 응답:", res.data);
     alert("회원가입 성공!");
-    navigate("/login"); // ✅
+    navigate("/login");
   } catch (err) {
     console.error(err);
     alert("회원가입 실패! 이미 존재하는 아이디인지 확인하세요.");
