@@ -1,4 +1,3 @@
-// src/pages/main/JoinedGroups.js
 import React from "react";
 
 const JoinedGroups = ({ schedules }) => {

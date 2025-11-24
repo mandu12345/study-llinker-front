@@ -4,15 +4,15 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthContext";
 import PrivateRoute from "./auth/PrivateRoute";
 
-// ✅ 사용자 관련 페이지
+// 사용자 관련 페이지
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import MainPage from "./pages/MainPage";
-import Profile from "./pages/main/profile";
-import Board from "./pages/main/Board";
+import MyPage from "./pages/main/MyPage";
+import Board from "./pages/main/Board"; 
 import BoardWrite from "./pages/main/BoardWrite";
 
-// ✅ 관리자 관련 페이지
+// 관리자 관련 페이지
 import AdminPage from "./pages/AdminPage";
 import AnswerPage from "./pages/admin/AnswerPage";   // “문의 답변 작성” 페이지
 import PostEditPage from "./pages/admin/PostEditPage"; // “게시글 수정” 페이지
@@ -41,7 +41,7 @@ function App() {
           >
             <Route path="board" element={<Board />} />
             <Route path="board/write" element={<BoardWrite />} />
-            <Route path="profile" element={<Profile />} />
+            <Route path="mypage" element={<MyPage />} />
           </Route>
 
           {/* ======================= */}

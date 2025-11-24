@@ -6,12 +6,13 @@ import "react-calendar/dist/Calendar.css";
 import "./Mainpage.css";
 
 import StudyList from "./main/StudyList";
-import JoinedGroups from "./main/JoinedGroups";
 import RecommendGroups from "./main/RecommendGroups";
 import UserBasicDashboard from "./main/UserBasicDashboard";
-import UserServiceDashboard from "./main/UserServiceDashboard";
 import Board from "./main/Board";
 import BoardWrite from "./main/BoardWrite";
+import CreateScheduleModal from "./main/CreateScheduleModal";
+import MyPage from "./main/MyPage";
+import EditProfile from "./main/EditProfile";
 
 // 더미 일정 + 위치(좌표)
 const initialSchedules = [
@@ -71,12 +72,18 @@ const MainPage = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
 
+  // 리더 여부 (나중엔 로그인 사용자 role 기반으로 변경 가능)
+  const [isLeader, setIsLeader] = useState(true);
+
+  // 일정 등록 모달 상태
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
   const mapRef = useRef(null);
   const markersRef = useRef([]);
 
-  const location = useLocation();
+  //const location = useLocation();
   // 게시판 경로일 때는 달력/지도 숨기기
-  const hideDashboard = location.pathname.startsWith("/main/board");
+  //const hideDashboard = location.pathname.startsWith("/main/board");
 
   // 사용자 현재 위치 가져오기
   useEffect(() => {
@@ -111,37 +118,22 @@ const MainPage = () => {
     );
   };
 
-  // 스케줄 추가
-  const handleAddSchedule = (group) => {
-    const alreadyJoined = schedules.some(
-      (s) => s.title === group.title && s.isJoined
-    );
-    if (alreadyJoined) {
-      alert("이미 신청된 스터디입니다.");
-      return;
-    }
-    const newSchedule = {
-      id: schedules.length + 1,
-      title: group.title,
-      date: group.date || new Date(),
-      leader: group.leader,
-      location: group.location || "미정",
-      content: group.content || "스터디 내용 없음",
-      isJoined: true,
-      members: group.members || 1,
-      max: group.max || 10,
-      lat: group.lat || 37.5665,
-      lng: group.lng || 126.978,
-    };
+  // 리더 전용 일정 등록 함수
+  const handleCreateSchedule = (newSchedule) => {
     setSchedules((prev) => [...prev, newSchedule]);
-    alert(`${group.title} 일정이 달력에 추가되었습니다!`);
+    setShowCreateModal(false);
+    alert(`${newSchedule.title} 일정이 등록되었습니다.`);
   };
 
-  // 스케줄 삭제
+  // 일정 삭제
   const handleRemoveSchedule = (id) => {
-    if (window.confirm("정말 이 일정을 취소하시겠습니까?")) {
+    if (!isLeader) {
+      alert("리더만 일정을 삭제할 수 있습니다.");
+      return;
+    }
+    if (window.confirm("정말 이 일정을 삭제하시겠습니까?")) {
       setSchedules((prev) => prev.filter((s) => s.id !== id));
-      alert("일정이 취소되었습니다.");
+      alert("일정이 삭제되었습니다.");
     }
   };
 
@@ -221,8 +213,10 @@ const MainPage = () => {
           >
             🔔 알림
             {notifications.some((n) => !n.isRead) && (
-              <span className="badge bg-danger position-absolute top-0 start-100 translate-middle"
-                style={{ fontSize: "0.7rem" }}>
+              <span
+                className="badge bg-danger position-absolute top-0 start-100 translate-middle"
+                style={{ fontSize: "0.7rem" }}
+              >
                 {notifications.filter((n) => !n.isRead).length}
               </span>
             )}
@@ -236,73 +230,97 @@ const MainPage = () => {
           {/* Sidebar */}
           <div className="col-3 bg-light vh-100 p-3 border-right">
             <ul className="list-group list-group-flush">
-              <li className="list-group-item"><Link to="/main" className="nav-link">내 대시보드</Link></li>
+              <li className="list-group-item"><Link to="/main" className="nav-link">HOME</Link></li>
               <li className="list-group-item"><Link to="/main/list" className="nav-link">스터디 목록</Link></li>
-              <li className="list-group-item"><Link to="/main/joined" className="nav-link">참여한 그룹</Link></li>
               <li className="list-group-item"><Link to="/main/recommend" className="nav-link">추천 그룹</Link></li>
-              <li className="list-group-item"><Link to="/main/service-dashboard" className="nav-link">서비스 대시보드</Link></li>
               <li className="list-group-item"><Link to="/main/board" className="nav-link">게시판</Link></li>
-              <li className="list-group-item"><Link to="/main/profile" className="nav-link">내 프로필</Link></li>
+              <li className="list-group-item"><Link to="/main/mypage" className="nav-link">내 프로필</Link></li>
             </ul>
           </div>
 
           {/* Content */}
           <div className="col-9 p-4">
-            {/* 달력+지도는 게시판 페이지가 아닐 때만 보여줌 */}
-            {!hideDashboard && (
-              <div className="row">
-                {/* 달력 */}
-                <div className="col-md-6">
-                  <h5>스터디 일정</h5>
-                  <Calendar onChange={setDate} value={date} tileClassName={highlightScheduleDates} />
-                  <p className="mt-2">선택한 날짜: {date.toDateString()}</p>
-                  {schedulesForDate.length > 0 ? (
-                    schedulesForDate.map((s) => (
-                      <div key={s.id} className="card schedule-card mb-2 shadow-sm">
-                        <div className="card-body">
-                          <h6 className="card-title">{s.title}</h6>
-                          <p className="card-text">
-                            리더: {s.leader} <br />
-                            장소: {s.location} <br />
-                            내용: {s.content} <br />
-                            날짜: {s.date.toDateString()}
-                          </p>
-                          {s.isJoined && (
-                            <button
-                              className="btn btn-danger btn-sm mt-2"
-                              onClick={() => handleRemoveSchedule(s.id)}
-                            >
-                              참여 취소
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p>등록된 일정이 없습니다.</p>
-                  )}
-                </div>
-
-                {/* 지도 */}
-                <div className="col-md-6">
-                  <div id="map" style={{ width: "100%", height: "400px", marginTop: "20px" }}></div>
-                </div>
-              </div>
-            )}
-
             {/* 라우팅 컴포넌트 */}
-            <Routes>
-              <Route index element={<UserBasicDashboard />} />
+          <Routes>
+              {/* HOME 페이지에서만 달력+지도 표시 */}
+              <Route
+                index
+                element={
+                  <div className="row">
+                    <div className="col-md-6">
+                      <h2>스터디 일정</h2><br></br>
+                      {isLeader && (
+                        <button
+                          className="btn btn-primary btn-sm mb-3"
+                          onClick={() => setShowCreateModal(true)}
+                        >
+                          + 새 일정 등록
+                        </button>
+                      )}
+                      <Calendar
+                        onChange={setDate}
+                        value={date}
+                        tileClassName={highlightScheduleDates}
+                      />
+                      <p className="mt-2">선택한 날짜: {date.toDateString()}</p>
+                      {schedulesForDate.length > 0 ? (
+                        schedulesForDate.map((s) => (
+                          <div key={s.id} className="card schedule-card mb-2 shadow-sm">
+                            <div className="card-body">
+                              <h6 className="card-title">{s.title}</h6>
+                              <p className="card-text">
+                                리더: {s.leader} <br />
+                                장소: {s.location} <br />
+                                내용: {s.content} <br />
+                                날짜: {s.date.toDateString()}
+                              </p>
+                              {isLeader && (
+                                <button
+                                  className="btn btn-danger btn-sm mt-2"
+                                  onClick={() => handleRemoveSchedule(s.id)}
+                                >
+                                  일정 삭제
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p>등록된 일정이 없습니다.</p>
+                      )}
+                    </div>
+                    
+                    {/* 지도 */}
+                    <div className="col-md-6">
+                      <div id="map" style={{ width: "100%", height: "400px", marginTop: "20px" }}></div>
+                    </div>
+
+                    {/* UserBasicDashboard */}
+                    <div className="mt-4">
+                      <UserBasicDashboard />
+                    </div>
+                  </div>
+                }
+              />
               <Route path="list" element={<StudyList />} />
-              <Route path="joined" element={<JoinedGroups schedules={schedules} />} />
-              <Route path="recommend" element={<RecommendGroups onAddSchedule={handleAddSchedule} />} />
-              <Route path="service-dashboard" element={<UserServiceDashboard />} />
+              <Route path="recommend" element={<RecommendGroups onAddSchedule={handleCreateSchedule} />} />
               <Route path="board" element={<Board />} />
               <Route path="board/write" element={<BoardWrite />} />
+              <Route path="mypage" element={<MyPage />} />
+              <Route path="edit-profile" element={<EditProfile />} />
+
             </Routes>
           </div>
         </div>
       </div>
+
+      {/* 일정 등록 모달 (리더만) */}
+      {showCreateModal && isLeader && (
+        <CreateScheduleModal
+          onClose={() => setShowCreateModal(false)}
+          onSave={handleCreateSchedule}
+        />
+      )}
 
       {/* 알림 모달 */}
       {showNotifications && (
