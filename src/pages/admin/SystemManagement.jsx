@@ -3,7 +3,7 @@
 import React from "react";
 import { Routes, Route, Link, useLocation } from "react-router-dom";
 import NotificationManager from "./NotificationManager";
-import api from "../../axios"; 
+import api from "../../api/axios";
 
 // -----------------------------------------------------------------
 // 시스템 운영 컴포넌트 (SystemOperator)

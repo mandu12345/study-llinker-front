@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import api from "../../axios";
+import api from "../../api/axios";
 
 // 모달
 import UserEditModal from "./UserEditModal";

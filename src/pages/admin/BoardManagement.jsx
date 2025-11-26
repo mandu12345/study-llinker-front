@@ -1,7 +1,7 @@
 // src/pages/admin/BoardManagement.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import api from "../../axios";
+import api from "../../api/axios";
 
 const BoardManagement = () => {
   const [posts, setPosts] = useState([]);

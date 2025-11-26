@@ -14,7 +14,6 @@ import BoardWrite from "./pages/main/BoardWrite";
 
 // 관리자 관련 페이지
 import AdminPage from "./pages/AdminPage";
-import AnswerPage from "./pages/admin/AnswerPage";   // “문의 답변 작성” 페이지
 import PostEditPage from "./pages/admin/PostEditPage"; // “게시글 수정” 페이지
 
 function App() {
@@ -60,15 +59,6 @@ function App() {
           {/* 🔹 개별 상세 페이지 (독립형) */}
           {/* ======================= */}
 
-          {/* 문의 답변 작성 페이지 */}
-          <Route
-            path="/admin/system/answer/:id"
-            element={
-              <PrivateRoute>
-                <AnswerPage />
-              </PrivateRoute>
-            }
-          />
 
           {/* 게시글 수정 페이지 */}
           <Route

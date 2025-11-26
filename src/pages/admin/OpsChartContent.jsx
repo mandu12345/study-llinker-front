@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import api from "../../api/axios"; 
+import api from "../../api/axios";
 
 import StudyCountChart from "./charts/StudyCountChart";
 import MemberRatioChart from "./charts/MemberRatioChart";

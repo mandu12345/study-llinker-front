@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import api from "../../axios";
+import api from "../../api/axios";
 
 const PostEditPage = () => {
   const { id } = useParams();                 // DB: post_id
