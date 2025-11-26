@@ -1,16 +1,18 @@
-import React, { useState } from "react";
+// src/pages/admin/OpsChart.jsx
+import React, { useState, useEffect } from "react";
+import api from "../../api/axios";
 import OpsChartContent from "./OpsChartContent";  // ⭐ 핵심
 
 // -----------------------------------------------------------------
-// 💡 데이터 내보내기 모달
+// 💡 데이터 내보내기 모달 (파일 안에 그대로 둠)
 // -----------------------------------------------------------------
 const ExportModal = ({ show, onClose, onConfirm }) => {
     if (!show) return null;
 
     return (
-        <div 
-            className="modal show" 
-            tabIndex="-1" 
+        <div
+            className="modal show"
+            tabIndex="-1"
             style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}
         >
             <div className="modal-dialog">
@@ -21,7 +23,9 @@ const ExportModal = ({ show, onClose, onConfirm }) => {
                     </div>
                     <div className="modal-body">
                         <p>통계 데이터를 CSV 파일로 다운로드하시겠습니까?</p>
-                        <small className="text-muted">실제 다운로드 기능은 여기서 구현됩니다.</small>
+                        <small className="text-muted">
+                            실제 다운로드 기능은 여기서 구현됩니다.
+                        </small>
                     </div>
                     <div className="modal-footer">
                         <button className="btn btn-secondary" onClick={onClose}>취소</button>
@@ -38,10 +42,18 @@ const ExportModal = ({ show, onClose, onConfirm }) => {
 const OpsChart = () => {
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
-    // F-S-DA-001: 주요 통계 조회 데이터 (이것도 API로 대체 예정)
-    const totalUsers = 1250;
-    const activeStudies = 120;
-    const newSignups = 55;
+    // 📌 백엔드에서 가져오는 요약 통계
+    const [summary, setSummary] = useState({
+        totalUsers: 0,
+        activeStudies: 0,
+        newSignupsToday: 0
+    });
+
+    useEffect(() => {
+        api.get("/stats/summary")
+            .then(res => setSummary(res.data))
+            .catch(err => console.error("요약 통계 불러오기 실패:", err));
+    }, []);
 
     const handleConfirmExport = () => {
         setIsExportModalOpen(false);
@@ -52,13 +64,22 @@ const OpsChart = () => {
         <div>
             <h2>📊 운영 대시보드</h2>
 
-            {/* 상단 요약 정보 */}
+            {/* 상단 요약 정보 (API 데이터 반영 버전) */}
             <div className="alert alert-info d-flex justify-content-between mb-4">
-                <p className="mb-0">총 회원: <strong>{totalUsers}명</strong></p>
-                <p className="mb-0">활성 스터디: <strong>{activeStudies}개</strong></p>
-                <p className="mb-0">신규 가입 (오늘): <strong>{newSignups}명</strong></p>
+                <p className="mb-0">
+                    총 회원: <strong>{summary.totalUsers}명</strong>
+                </p>
+                <p className="mb-0">
+                    활성 스터디: <strong>{summary.activeStudies}개</strong>
+                </p>
+                <p className="mb-0">
+                    신규 가입 (오늘): <strong>{summary.newSignupsToday}명</strong>
+                </p>
 
-                <button className="btn btn-sm btn-primary" onClick={() => setIsExportModalOpen(true)}>
+                <button
+                    className="btn btn-sm btn-primary"
+                    onClick={() => setIsExportModalOpen(true)}
+                >
                     📥 데이터 내보내기
                 </button>
             </div>

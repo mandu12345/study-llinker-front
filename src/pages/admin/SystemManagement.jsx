@@ -1,12 +1,12 @@
 // src/pages/admin/SystemManagement.jsx
 
 import React from "react";
-import { Routes, Route, Link, useLocation } from "react-router-dom";
+import { Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
 import NotificationManager from "./NotificationManager";
 import api from "../../api/axios";
 
 // -----------------------------------------------------------------
-// 시스템 운영 컴포넌트 (SystemOperator)
+// 시스템 운영 컴포넌트
 // -----------------------------------------------------------------
 const SystemOperator = () => {
 
@@ -49,12 +49,11 @@ const SystemOperator = () => {
 };
 
 // -----------------------------------------------------------------
-// 시스템 관리 메인 컴포넌트 (문의 관리 제거 버전)
+// 시스템 관리 메인 컴포넌트
 // -----------------------------------------------------------------
 const SystemManagement = () => {
     const location = useLocation();
 
-    // 현재 위치에 따라 탭 활성화
     const getActiveLinkClass = (pathSegment) => {
         return location.pathname.includes(pathSegment) ? "active" : "";
     };
@@ -88,6 +87,10 @@ const SystemManagement = () => {
 
             {/* 라우팅 */}
             <Routes>
+
+                {/* ⭐ index일 때 자동으로 /system-op 로 이동 ⭐ */}
+                <Route index element={<Navigate to="system-op" replace />} />
+
                 <Route path="system-op" element={<SystemOperator />} />
                 <Route path="notifications" element={<NotificationManager />} />
             </Routes>
