@@ -1,87 +1,103 @@
-// src/pages/admin/GroupList.jsx
+import React, { useState, useEffect } from "react";
+import api from "../../axios";
 
-import React, { useState } from "react";
-import GroupEditModal from "./GroupEditModal"; // 그룹 수정 모달
-import GroupDeleteModal from "./GroupDeleteModal"; // 그룹 삭제 모달
-import GroupStatusChangeModal from "./GroupStatusChangeModal"; // 그룹 상태 변경 모달
-import StatsModal from './StatsModal'; // 통계 모달 (추가)
-
-const dummyGroups = [
-  { id: 1, title: "Java 스터디", leader: "홍길동", members: 5, max: 10, status: "Pending", category: "IT" },
-  { id: 2, title: "AI 스터디", leader: "이호주", members: 8, max: 10, status: "Active", category: "AI" },
-  { id: 3, title: "파이썬 기초", leader: "김철수", members: 3, max: 5, status: "Active", category: "IT" },
-  { id: 4, title: "자유 독서 모임", leader: "박영희", members: 2, max: 10, status: "Inactive", category: "Culture" },
-];
+import GroupEditModal from "./GroupEditModal";
+import GroupDeleteModal from "./GroupDeleteModal";
+import GroupStatusChangeModal from "./GroupStatusChangeModal";
+import StatsModal from "./StatsModal";
 
 const GroupList = () => {
-  const [groups, setGroups] = useState(dummyGroups);
+  const [groups, setGroups] = useState([]);
 
-  // 모달 상태 관리
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+
   const [currentGroup, setCurrentGroup] = useState(null);
   const [targetAction, setTargetAction] = useState(null);
 
-  // ------------------------------------------------
-  // 🗑️ 삭제 로직
-  // ------------------------------------------------
-  const handleDeleteClick = (group) => {
-    setCurrentGroup(group);
-    setIsDeleteModalOpen(true);
-  };
+  // ----------------------------------------
+  // ✅ 1. 그룹 전체 조회 API (GET)
+  // ----------------------------------------
+  useEffect(() => {
+    api.get("/study-groups")
+      .then(res => setGroups(res.data))
+      .catch(err => console.error("그룹 목록 조회 실패:", err));
+  }, []);
 
-  const handleDeleteConfirm = (id) => {
-    setGroups(groups.filter((g) => g.id !== id));
-    setIsDeleteModalOpen(false);
-    alert(`✅ 그룹 ${id}번이 영구 삭제되었습니다.`);
-  };
-
-  // ------------------------------------------------
-  // 📝 수정 로직
-  // ------------------------------------------------
+  // ----------------------------------------
+  // 📝 2. 그룹 수정 (PUT /study-groups/{id})
+  // ----------------------------------------
   const handleEditClick = (group) => {
     setCurrentGroup(group);
     setIsEditModalOpen(true);
   };
 
   const handleSave = (updatedGroup) => {
-    setGroups(groups.map((g) => (g.id === updatedGroup.id ? updatedGroup : g)));
-    setIsEditModalOpen(false);
-    alert(`✅ 그룹 [${updatedGroup.title}] 정보가 수정되었습니다.`);
+    api.put(`/study-groups/${updatedGroup.id}`, updatedGroup)
+      .then(() => {
+        setGroups(groups.map(g => g.id === updatedGroup.id ? updatedGroup : g));
+        setIsEditModalOpen(false);
+        alert(`그룹 [${updatedGroup.title}] 수정 완료`);
+      })
+      .catch(err => console.error("그룹 수정 실패:", err));
   };
 
-  // ⚙️ 상태 변경 로직
+  // ----------------------------------------
+  // 🗑 3. 그룹 삭제 (DELETE /study-groups/{id})
+  // ----------------------------------------
+  const handleDeleteClick = (group) => {
+    setCurrentGroup(group);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = (id) => {
+    api.delete(`/study-groups/${id}`)
+      .then(() => {
+        setGroups(groups.filter(g => g.id !== id));
+        setIsDeleteModalOpen(false);
+        alert(`그룹 ${id} 삭제 완료`);
+      })
+      .catch(err => console.error("그룹 삭제 실패:", err));
+  };
+
+  // ----------------------------------------
+  // ⚙ 4. 그룹 상태 변경 모달 열기
+  // ----------------------------------------
   const handleStatusChangeClick = (group, action) => {
     setCurrentGroup(group);
     setTargetAction(action);
     setIsStatusModalOpen(true);
   };
 
+  // ----------------------------------------
+  // ⚙ 5. 그룹 상태 변경 (PATCH /study-groups/{id})
+  // ----------------------------------------
   const handleStatusChangeConfirm = (id, action) => {
-    let message = '';
-    let updatedGroups = groups;
+    let newStatus = null;
 
-    if (action === 'Approve' || action === 'Activate') {
-      message = '활성화';
-      updatedGroups = groups.map((g) => (g.id === id ? { ...g, status: 'Active' } : g));
-    } else if (action === 'Deactivate') {
-      message = '비활성화';
-      updatedGroups = groups.map((g) => (g.id === id ? { ...g, status: 'Inactive' } : g));
-    } else if (action === 'Reject') {
-      message = '반려 및 삭제';
-      updatedGroups = groups.filter((g) => g.id !== id);
+    if (action === "Activate") newStatus = "Active";
+    else if (action === "Deactivate") newStatus = "Inactive";
+    else if (action === "Pending") newStatus = "Pending";
+
+    if (!newStatus) {
+      console.error("Unknown action:", action);
+      return;
     }
 
-    setGroups(updatedGroups);
-    setIsStatusModalOpen(false);
-    alert(`✅ 그룹 ${id}번이 [${message}] 처리되었습니다.`);
+    api.patch(`/study-groups/${id}`, { status: newStatus })
+      .then(() => {
+        setGroups(groups.map(g =>
+          g.id === id ? { ...g, status: newStatus } : g
+        ));
+        setIsStatusModalOpen(false);
+        alert(`그룹 상태가 '${newStatus}'로 변경되었습니다.`);
+      })
+      .catch(err => console.error("그룹 상태 변경 실패:", err));
   };
 
-  // ------------------------------------------------
-  // 🌐 상태 한글 변환 함수
-  // ------------------------------------------------
+  // 그룹 상태 텍스트 변환
   const getStatusLabel = (status) => {
     switch (status) {
       case "Pending": return "대기중";
@@ -91,47 +107,54 @@ const GroupList = () => {
     }
   };
 
-  // ------------------------------------------------
-  // F-S-GM-003: 상태에 따른 버튼 렌더링
-  // ------------------------------------------------
+  // 상태 버튼 렌더링
   const renderStatusButtons = (group) => {
     if (group.status === "Pending") {
       return (
         <>
-          <button className="btn btn-success btn-sm me-2" onClick={() => handleStatusChangeClick(group, 'Approve')}>승인</button>
-          <button className="btn btn-warning btn-sm me-2" onClick={() => handleStatusChangeClick(group, 'Reject')}>반려</button>
+          <button className="btn btn-success btn-sm me-2"
+            onClick={() => handleStatusChangeClick(group, "Activate")}>
+            활성화
+          </button>
+
+          <button className="btn btn-warning btn-sm me-2"
+            onClick={() => handleStatusChangeClick(group, "Deactivate")}>
+            비활성화
+          </button>
         </>
       );
     } else if (group.status === "Active") {
       return (
-        <button className="btn btn-warning btn-sm me-2" onClick={() => handleStatusChangeClick(group, 'Deactivate')}>비활성화</button>
+        <button className="btn btn-warning btn-sm me-2"
+          onClick={() => handleStatusChangeClick(group, "Deactivate")}>
+          비활성화
+        </button>
       );
-    } else if (group.status === "Inactive") {
+    } else {
       return (
-        <button className="btn btn-success btn-sm me-2" onClick={() => handleStatusChangeClick(group, 'Activate')}>활성화</button>
+        <button className="btn btn-success btn-sm me-2"
+          onClick={() => handleStatusChangeClick(group, "Activate")}>
+          활성화
+        </button>
       );
     }
-    return null;
   };
 
-  // 📊 통계 확인 버튼 클릭 이벤트
-  const handleStatsClick = () => {
-    setIsStatsModalOpen(true);
-  };
+  const handleStatsClick = () => setIsStatsModalOpen(true);
 
   return (
     <div>
-      <h2>📚 스터디 그룹 관리 </h2>
+      <h2>📚 스터디 그룹 관리</h2>
 
-      {/* 필터 + 통계 버튼 */}
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <input type="text" className="form-control w-25 me-2" placeholder="그룹명 검색 " />
+      {/* 검색 + 통계 버튼 */}
+      <div className="d-flex justify-content-between mb-3">
+        <input type="text" className="form-control w-25" placeholder="그룹명 검색" />
         <button className="btn btn-secondary" onClick={handleStatsClick}>
           📊 통계 확인
         </button>
       </div>
 
-      {/* 그룹 테이블 */}
+      {/* 그룹 목록 테이블 */}
       <table className="table table-bordered">
         <thead>
           <tr>
@@ -145,42 +168,30 @@ const GroupList = () => {
           </tr>
         </thead>
         <tbody>
-          {groups.map((g) => (
+          {groups.map(g => (
             <tr key={g.id}>
               <td>{g.id}</td>
               <td>{g.title}</td>
               <td>{g.category}</td>
-              <td>{g.leader}</td>
-              <td>{g.members}/{g.max}</td>
+              <td>{g.leaderName}</td>
+              <td>{g.memberCount}/{g.max}</td>
+              <td>{getStatusLabel(g.status)}</td>
               <td>
-                <span
-                  className={
-                    g.status === "Pending"
-                      ? "text-secondary"
-                      : g.status === "Active"
-                      ? "text-success"
-                      : "text-muted"
-                  }
-                >
-                  {getStatusLabel(g.status)}
-                </span>
-              </td>
-              <td>
-                <button className="btn btn-info btn-sm me-2" onClick={() => handleEditClick(g)}>
-                  상세/수정
-                </button>
+                <button className="btn btn-info btn-sm me-2"
+                  onClick={() => handleEditClick(g)}>수정</button>
+
                 {renderStatusButtons(g)}
-                <button className="btn btn-danger btn-sm" onClick={() => handleDeleteClick(g)}>
-                  삭제
-                </button>
+
+                <button className="btn btn-danger btn-sm"
+                  onClick={() => handleDeleteClick(g)}>삭제</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {/* 모달 영역 */}
-      {isEditModalOpen && currentGroup && (
+      {/* 모달들 */}
+      {isEditModalOpen && (
         <GroupEditModal
           show={isEditModalOpen}
           group={currentGroup}
@@ -189,7 +200,7 @@ const GroupList = () => {
         />
       )}
 
-      {isDeleteModalOpen && currentGroup && (
+      {isDeleteModalOpen && (
         <GroupDeleteModal
           show={isDeleteModalOpen}
           group={currentGroup}
@@ -198,7 +209,7 @@ const GroupList = () => {
         />
       )}
 
-      {isStatusModalOpen && currentGroup && targetAction && (
+      {isStatusModalOpen && (
         <GroupStatusChangeModal
           show={isStatusModalOpen}
           group={currentGroup}
@@ -207,12 +218,9 @@ const GroupList = () => {
           onClose={() => setIsStatusModalOpen(false)}
         />
       )}
-      
+
       {isStatsModalOpen && (
-        <StatsModal
-          show={isStatsModalOpen}
-          onClose={() => setIsStatsModalOpen(false)}
-        />
+        <StatsModal show={isStatsModalOpen} onClose={() => setIsStatsModalOpen(false)} />
       )}
     </div>
   );
