@@ -1,33 +1,54 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Map from "../../components/Map";
+import api from "../api/axios";
 
 const EditProfile = () => {
   const navigate = useNavigate();
 
-  // 더미 사용자 데이터
-  const [user, setUser] = useState({
-    user_id: 1,
-    username: "superuser",
-    email: "superuser@example.com",
-    name: "관리자",
-    password: "",
-    interest_tags: ["Java", "React", "AI"],
-    latitude: 37.4496,
-    longitude: 127.1278,
-  });
-
+  const [user, setUser] = useState(null);
   const [newTag, setNewTag] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  // 페이지 진입 시 콘솔 확인 (테스트용)
+  // ------------------------------------
+  // 1. 사용자 정보 불러오기
+  // ------------------------------------
+  const fetchProfile = async () => {
+    try {
+      const res = await api.get("/users/profile"); // 토큰 기반
+      const data = res.data;
+
+      setUser({
+        user_id: data.user_id,
+        username: data.username,
+        email: data.email,
+        name: data.name,
+        password: "",
+        interest_tags: data.interest_tags || [],
+      });
+
+      setLoading(false);
+    } catch (err) {
+      console.error("프로필 로드 오류:", err);
+      alert("사용자 정보를 불러올 수 없습니다.");
+      navigate("/main/mypage");
+    }
+  };
+
   useEffect(() => {
-    console.log("현재 사용자:", user.username);
+    fetchProfile();
   }, []);
 
-  // 태그 추가
+  if (loading || !user) return <div className="container mt-4">로딩중...</div>;
+
+  // ------------------------------------
+  // 2. 태그 추가
+  // ------------------------------------
   const handleAddTag = () => {
     if (newTag && !user.interest_tags.includes(newTag)) {
-      setUser({ ...user, interest_tags: [...user.interest_tags, newTag] });
+      setUser({
+        ...user,
+        interest_tags: [...user.interest_tags, newTag],
+      });
     }
     setNewTag("");
   };
@@ -40,18 +61,34 @@ const EditProfile = () => {
     });
   };
 
-  // 더미 정보 수정 완료
-  const handleSubmit = (e) => {
+  // ------------------------------------
+  // 3. 정보 수정 요청
+  // ------------------------------------
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert("정보 수정 완료 (테스트 모드)\n서버 연결 시 실제 반영됩니다!");
-    navigate("/main/mypage");
+
+    const body = {
+      name: user.name,
+      password: user.password || null,
+      interest_tags: user.interest_tags,
+    };
+
+    try {
+      await api.put(`/users/${user.user_id}`, body);
+      alert("정보 수정 완료!");
+      navigate("/main/mypage");
+    } catch (err) {
+      console.error("정보 수정 오류:", err);
+      alert("수정 실패! 서버 상태를 확인하세요.");
+    }
   };
 
   return (
     <div className="container mt-4">
       <h2>내 정보 수정</h2>
+
       <form onSubmit={handleSubmit} className="mt-3">
-        {/* 아이디 (수정 불가) */}
+        {/* 아이디 */}
         <div className="mb-3">
           <label className="form-label">아이디</label>
           <input
@@ -62,7 +99,7 @@ const EditProfile = () => {
           />
         </div>
 
-        {/* 이메일 (수정 불가) */}
+        {/* 이메일 */}
         <div className="mb-3">
           <label className="form-label">이메일</label>
           <input
@@ -79,11 +116,13 @@ const EditProfile = () => {
           <input
             className="form-control"
             value={user.name}
-            onChange={(e) => setUser({ ...user, name: e.target.value })}
+            onChange={(e) =>
+              setUser({ ...user, name: e.target.value })
+            }
           />
         </div>
 
-        {/* 비밀번호 */}
+        {/* 새 비밀번호 */}
         <div className="mb-3">
           <label className="form-label">새 비밀번호</label>
           <input
@@ -91,9 +130,10 @@ const EditProfile = () => {
             className="form-control"
             placeholder="변경할 비밀번호 입력"
             value={user.password}
-            onChange={(e) => setUser({ ...user, password: e.target.value })}
+            onChange={(e) =>
+              setUser({ ...user, password: e.target.value })
+            }
           />
-          <small className="text-muted">비밀번호는 6자 이상이어야 합니다.</small>
         </div>
 
         {/* 관심사 태그 */}
@@ -111,6 +151,7 @@ const EditProfile = () => {
               </span>
             ))}
           </div>
+
           <div className="input-group mt-2">
             <input
               type="text"
@@ -127,18 +168,6 @@ const EditProfile = () => {
               추가
             </button>
           </div>
-        </div>
-
-        {/* 위치 */}
-        <div className="mb-3">
-          <label className="form-label">위치</label>
-          <p>
-            ({user.latitude.toFixed(4)}, {user.longitude.toFixed(4)})
-          </p>
-          <Map latitude={user.latitude} longitude={user.longitude} />
-          <small className="text-muted">
-            현재 위치는 수정 불가 (테스트 모드)
-          </small>
         </div>
 
         <button type="submit" className="btn btn-primary">

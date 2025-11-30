@@ -1,11 +1,12 @@
 import React, { useState } from "react";
+import api from "../../api/axios";
 
-const CreateScheduleModal = ({ onClose, onSave }) => {
+const CreateScheduleModal = ({ groupId, onClose, onSave }) => {
   const [form, setForm] = useState({
     title: "",
     date: "",
-    time: "",
-    location: "",
+    startTime: "",
+    endTime: "",
     content: "",
   });
 
@@ -13,26 +14,36 @@ const CreateScheduleModal = ({ onClose, onSave }) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.title || !form.date) {
-      alert("제목과 날짜는 필수 입력 항목입니다.");
+    if (!form.title || !form.date || !form.startTime || !form.endTime) {
+      alert("제목, 날짜, 시작/종료 시간은 필수 입력 항목입니다.");
       return;
     }
 
-    const newSchedule = {
-      id: Date.now(),
+    const startDateTime = `${form.date}T${form.time}`;
+    const endDateTime = `${form.date}T${form.endTime}`;
+
+    const body = {
+      groupId: Number(groupId),
       title: form.title,
-      date: new Date(form.date + "T" + (form.time || "00:00")),
-      location: form.location || "미정",
-      content: form.content || "내용 없음",
-      isJoined: true,
-      leader: "홍길동",
+      description: form.content || "",
+      start_time: startDateTime,
+      end_time: endDateTime,
+      location: "", // 사용 안함, 기본 빈 값
     };
 
-    onSave(newSchedule);
-    onClose();
+    try {
+      const res = await api.post("/study-schedules", body);
+      console.log("일정 생성 성공:", res.data);
+
+      if (onSave) onSave(res.data); // 백엔드가 반환하는 일정 데이터 상위로 전달
+      onClose();
+    } catch (err) {
+      console.error("일정 생성 오류:", err);
+      alert("일정 생성 실패!");
+    }
   };
 
   return (
@@ -49,6 +60,7 @@ const CreateScheduleModal = ({ onClose, onSave }) => {
           </div>
           <div className="modal-body">
             <form onSubmit={handleSubmit}>
+              {/* 제목 */}
               <input
                 type="text"
                 name="title"
@@ -58,6 +70,8 @@ const CreateScheduleModal = ({ onClose, onSave }) => {
                 onChange={handleChange}
                 maxLength={30}
               />
+
+              {/* 날짜 */}
               <input
                 type="date"
                 name="date"
@@ -65,21 +79,26 @@ const CreateScheduleModal = ({ onClose, onSave }) => {
                 value={form.date}
                 onChange={handleChange}
               />
+
+              {/* 시작 시간 */}
               <input
                 type="time"
-                name="time"
+                name="startTime"
                 className="form-control mb-2"
-                value={form.time}
+                value={form.startTime}
                 onChange={handleChange}
               />
+
+              {/* 종료 시간 */}
               <input
-                type="text"
-                name="location"
+                type="time"
+                name="endTime"
                 className="form-control mb-2"
-                placeholder="장소"
-                value={form.location}
+                value={form.endTime}
                 onChange={handleChange}
               />
+
+              {/* 내용 */}
               <textarea
                 name="content"
                 className="form-control mb-2"

@@ -4,6 +4,7 @@ import { Link, Routes, Route, useLocation } from "react-router-dom";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import "./Mainpage.css";
+import api from "../api/axios";
 
 import StudyList from "./main/StudyList";
 import RecommendGroups from "./main/RecommendGroups";
@@ -14,88 +15,66 @@ import CreateScheduleModal from "./main/CreateScheduleModal";
 import MyPage from "./main/MyPage";
 import EditProfile from "./main/EditProfile";
 
-// 더미 일정 + 위치(좌표)
-const initialSchedules = [
-  {
-    id: 1,
-    title: "Java 스터디",
-    date: new Date(2025, 7, 31),
-    leader: "홍길동",
-    location: "가천대 중앙도서관",
-    content: "Java 기초 스터디",
-    isJoined: true,
-    members: 5,
-    max: 10,
-    lat: 37.449613,
-    lng: 127.127877,
-  },
-  {
-    id: 2,
-    title: "AI 스터디",
-    date: new Date(2025, 8, 1),
-    leader: "이호주",
-    location: "가천대역",
-    content: "AI 모델 학습",
-    isJoined: false,
-    members: 3,
-    max: 10,
-    lat: 37.450908,
-    lng: 127.126498,
-  },
-  {
-    id: 3,
-    title: "Spring Boot 스터디",
-    date: new Date(2025, 8, 5),
-    leader: "김철수",
-    location: "가천대 AI공학관",
-    content: "Spring Boot 프로젝트",
-    isJoined: false,
-    members: 2,
-    max: 10,
-    lat: 37.448834,
-    lng: 127.130092,
-  },
-];
-
-// 더미 알림 데이터
-const dummyNotifications = [
-  { id: 1, type: "일정", message: "Java 스터디가 8월 31일에 있습니다.", isRead: false },
-  { id: 2, type: "참여요청", message: "AI 스터디에 참여 요청이 있습니다.", isRead: true },
-  { id: 3, type: "공지", message: "Spring Boot 스터디 공지가 등록되었습니다.", isRead: true },
-];
-
 const MainPage = () => {
-  const username = "홍길동";
+  // 사용자 정보
+  const [userId, setUserId] = useState(null);
+  const [username, setUsername] = useState("");
+
+  // 날짜 / 일정 / 알림
   const [date, setDate] = useState(new Date());
-  const [schedules, setSchedules] = useState(initialSchedules);
-  const [notifications, setNotifications] = useState(dummyNotifications);
+  const [schedules, setSchedules] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  // 위치
   const [userLocation, setUserLocation] = useState(null);
 
-  // 리더 여부 (나중엔 로그인 사용자 role 기반으로 변경 가능)
+  // 리더 여부 (임시)
   const [isLeader, setIsLeader] = useState(true);
 
-  // 일정 등록 모달 상태
+  // 일정 등록 모달
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const mapRef = useRef(null);
   const markersRef = useRef([]);
 
-  //const location = useLocation();
-  // 게시판 경로일 때는 달력/지도 숨기기
-  //const hideDashboard = location.pathname.startsWith("/main/board");
-
-  // 사용자 현재 위치 가져오기
+    // 🧩 1) 로그인한 사용자 정보 불러오기
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        },
-        (err) => console.error(err)
-      );
-    }
+    const loadUserInfo = async () => {
+      try {
+        const res = await api.get("/users/profile");
+        const u = res.data.user;
+
+        setUsername(u.name);   // 화면 표시용
+        setUserId(u.userId);   // 이후 그룹/알림/일정 조회용 (state로 하나 추가 필요)
+
+      } catch (err) {
+        console.error("유저 정보 불러오기 실패:", err);
+      }
+    };
+
+    loadUserInfo();
   }, []);
+
+
+  // 🧩 2) 알림 목록 불러오기
+  useEffect(() => {
+    if (!userId) return; // userId가 로딩되기 전에는 실행 안 함
+
+    const loadNotifications = async () => {
+      try {
+        const res = await api.get(`/notifications?userId=${userId}`);
+        // 백엔드 OUT 형식이 배열 형태이므로 그대로 저장
+        setNotifications(res.data);
+
+      } catch (err) {
+        console.error("알림 불러오기 실패:", err);
+      }
+    };
+
+    loadNotifications();
+  }, [userId]);
+
 
   // 달력 하이라이트
   const highlightScheduleDates = ({ date: d, view }) => {
@@ -111,11 +90,22 @@ const MainPage = () => {
     }
   };
 
-  // 알림 읽음 처리
-  const markAsRead = (id) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
+  // 알림 읽음 처리 API
+  const markAsRead = async (notificationId) => {
+    try {
+      await api.patch(`/notifications/${notificationId}/read`, {
+        userid: userId
+      });
+
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.notificationId === notificationId ? { ...n, isRead: true } : n
+        )
+      );
+
+    } catch (err) {
+      console.error("알림 읽음 처리 실패:", err);
+    }
   };
 
   // 리더 전용 일정 등록 함수
@@ -136,9 +126,66 @@ const MainPage = () => {
       alert("일정이 삭제되었습니다.");
     }
   };
-
-  // 지도 초기화 + 마커
+  // 🧩 3) 내가 가입한 그룹 목록 → 각 그룹의 일정들 불러오기
   useEffect(() => {
+    if (!userId) return; // userId가 준비되기 전 실행 금지
+
+    const loadSchedules = async () => {
+      try {
+        // ① 내가 가입한 그룹 목록
+        const groupsRes = await api.get(`/users/${userId}/groups`);
+        const groups = groupsRes.data.groups; // groups 배열 추출
+
+        let mergedSchedules = [];
+
+        // ② 각 그룹별 일정 조회
+        for (const g of groups) {
+          const from = "2025-01-01T00:00:00";
+          const to = "2030-12-31T23:59:59"; // 전체 기간 조회용
+
+          const schRes = await api.get(
+            `/study-groups/${g.groupId}/schedules`,
+            {
+              params: {
+                groupId: g.groupId,
+                from,
+                to
+              }
+            }
+          );
+
+          const list = schRes.data.schedules;
+
+          // ③ 스케줄에 그룹 좌표를 붙여주기
+          const formatted = list.map((s) => ({
+            id: s.scheduleId,
+            title: s.title,
+            content: s.description,
+            date: new Date(s.startAt),
+            location: s.location,
+            leader: g.leaderId, // BE에서 이름 제공 안 하므로 ID로 표시
+            isJoined: true,
+
+            // ⚠ 스케줄 자체에는 좌표 없음 → 그룹 좌표 사용
+            lat: g.latitude,
+            lng: g.longitude
+          }));
+
+          mergedSchedules = [...mergedSchedules, ...formatted];
+        }
+
+        setSchedules(mergedSchedules);
+
+      } catch (err) {
+        console.error("일정 불러오기 실패:", err);
+      }
+    };
+
+    loadSchedules();
+  }, [userId]);  
+  
+    // 지도 표시
+    useEffect(() => {
     if (window.kakao && window.kakao.maps) {
       const container = document.getElementById("map");
       if (!container) return;
@@ -198,6 +245,9 @@ const MainPage = () => {
       s.date.getDate() === date.getDate()
   );
 
+  // -------------------------------------------------------------------------
+  // UI 부분 (수정 없음!!)
+  // -------------------------------------------------------------------------
   return (
     <div className="mainpage-wrapper">
       {/* Navbar */}
