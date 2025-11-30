@@ -16,6 +16,43 @@ import MyPage from "./main/MyPage";
 import EditProfile from "./main/EditProfile";
 
 const MainPage = () => {
+  // Kakao Maps Script 로딩 (전역 1회)
+  useEffect(() => {
+    if (document.getElementById("kakao-map-sdk")) return;
+
+    const script = document.createElement("script");
+    script.id = "kakao-map-sdk";
+    script.src =
+      "//dapi.kakao.com/v2/maps/sdk.js?appkey=카카오API키&autoload=false&libraries=services";
+    script.async = true;
+
+    script.onload = () => {
+      window.kakao.maps.load(() => {
+        console.log("Kakao Maps SDK Loaded");
+      });
+    };
+
+    document.head.appendChild(script);
+  }, []);
+
+  // 사용자 현재 위치 가져오기
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLocation({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          });
+        },
+        (err) => {
+          console.error("위치 가져오기 실패:", err);
+        }
+      );
+    }
+  }, []);
+
+
   // 사용자 정보
   const [userId, setUserId] = useState(null);
   const [username, setUsername] = useState("");
@@ -185,10 +222,15 @@ const MainPage = () => {
   }, [userId]);  
   
     // 지도 표시
-    useEffect(() => {
-    if (window.kakao && window.kakao.maps) {
+  useEffect(() => {
+    if (!window.kakao || !window.kakao.maps) return;
+
+    window.kakao.maps.load(() => {
       const container = document.getElementById("map");
       if (!container) return;
+
+      // HOME 다시 올 때 기존 지도 제거
+      container.innerHTML = "";
 
       const options = {
         center: new window.kakao.maps.LatLng(37.5665, 126.9780),
@@ -235,8 +277,9 @@ const MainPage = () => {
           infowindow.open(map, marker);
         });
       });
-    }
+    });
   }, [userLocation, schedules]);
+
 
   const schedulesForDate = schedules.filter(
     (s) =>
