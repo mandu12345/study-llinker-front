@@ -18,7 +18,7 @@ const GroupDeleteModal = ({ show, group, onConfirm, onClose }) => {
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-secondary" onClick={onClose}>취소</button>
-                        <button type="button" className="btn btn-danger" onClick={() => onConfirm(group.id)}>영구 삭제</button>
+                        <button type="button" className="btn btn-danger" onClick={() => onConfirm(group.groupId)}>영구 삭제</button>
                     </div>
                 </div>
             </div>

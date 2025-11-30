@@ -15,6 +15,7 @@ import BoardWrite from "./pages/main/BoardWrite";
 // 관리자 관련 페이지
 import AdminPage from "./pages/AdminPage";
 import PostEditPage from "./pages/admin/PostEditPage"; // “게시글 수정” 페이지
+import GroupEditPage from "./pages/admin/GroupEditPage"; //"그룹 수정" 페이지
 
 function App() {
   return (
@@ -69,6 +70,9 @@ function App() {
               </PrivateRoute>
             }
           />
+
+          {/* 그룹 수정 페이지 */}
+          <Route path="/admin/groups/edit/:groupId" element={<GroupEditPage />} /> 
 
         </Routes>
       </Router>

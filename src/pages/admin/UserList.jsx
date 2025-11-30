@@ -40,8 +40,8 @@ const UserTable = ({ users, onEdit, onDelete, onStatusChange }) => {
             </thead>
             <tbody>
                 {users.map(u => (
-                    <tr key={u.id}>
-                        <td>{u.id}</td>
+                    <tr key={u.userId}>
+                        <td>{u.userId}</td>
                         <td>{u.username}</td>
                         <td>{u.name}</td>
                         <td>{u.email}</td>
@@ -71,7 +71,36 @@ const UserTable = ({ users, onEdit, onDelete, onStatusChange }) => {
 // 🔵 전체 출석 조회 테이블 컴포넌트
 // ---------------------------------------------
 const AllAttendanceTable = () => {
-    const [attendance, setAttendance] = useState([]);
+    const [attendance, setAttendance] = useState([
+    {
+        attendanceId: 1,
+        userId: 1,
+        scheduleId: 101,
+        status: "PRESENT",
+        checkedAt: "2025-01-10 10:00:00"
+    },
+    {
+        attendanceId: 2,
+        userId: 2,
+        scheduleId: 101,
+        status: "LATE",
+        checkedAt: "2025-01-10 10:05:00"
+    },
+    {
+        attendanceId: 3,
+        userId: 3,
+        scheduleId: 102,
+        status: "ABSENT",
+        checkedAt: "-"
+    },
+    {
+        attendanceId: 4,
+        userId: 1,
+        scheduleId: 103,
+        status: "PRESENT",
+        checkedAt: "2025-01-11 09:58:00"
+    }
+]);
 
     useEffect(() => {
         api.get("/attendance")
@@ -95,12 +124,12 @@ const AllAttendanceTable = () => {
                 </thead>
                 <tbody>
                     {attendance.map(a => (
-                        <tr key={a.attendance_id}>
-                            <td>{a.attendance_id}</td>
-                            <td>{a.user_id}</td>
-                            <td>{a.schedule_id}</td>
+                        <tr key={a.attendanceId}>
+                            <td>{a.attendanceId}</td>
+                            <td>{a.userId}</td>
+                            <td>{a.scheduleId}</td>
                             <td>{a.status}</td>
-                            <td>{a.checked_at}</td>
+                            <td>{a.checkedAt}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -115,7 +144,33 @@ const AllAttendanceTable = () => {
 // ---------------------------------------------
 const UserList = () => {
     const [activeTab, setActiveTab] = useState("users");
-    const [users, setUsers] = useState([]);
+    const [users, setUsers] = useState([
+    {
+        userId: 1,
+        username: "student01",
+        name: "홍길동",
+        email: "hong@example.com",
+        role: "USER",
+        status: "Active"
+    },
+    {
+        userId: 2,
+        username: "leader01",
+        name: "김리더",
+        email: "leader@example.com",
+        role: "LEADER",
+        status: "Inactive"
+    },
+    {
+        userId: 3,
+        username: "admin01",
+        name: "관리자",
+        email: "admin@example.com",
+        role: "ADMIN",
+        status: "Active"
+    }
+]);
+
 
     // 모달 관리
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -138,9 +193,9 @@ const UserList = () => {
 
     // 저장
     const handleSave = (updatedUser) => {
-        api.put(`/users/${updatedUser.id}`, updatedUser)
+        api.put(`/users/${updatedUser.userId}`, updatedUser)
             .then(() => {
-                setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+                setUsers(users.map(u => u.userId === updatedUser.userId ? updatedUser : u));
                 setIsEditModalOpen(false);
                 alert("사용자 정보 수정 완료");
             });
@@ -152,10 +207,10 @@ const UserList = () => {
         setIsDeleteModalOpen(true);
     };
 
-    const handleDeleteConfirm = (id) => {
-        api.delete(`/users/${id}`)
+    const handleDeleteConfirm = (userId) => {
+        api.delete(`/users/${userId}`)
             .then(() => {
-                setUsers(users.filter(u => u.id !== id));
+                setUsers(users.filter(u => u.userId !== userId));
                 setIsDeleteModalOpen(false);
             });
     };
@@ -166,10 +221,10 @@ const UserList = () => {
         setIsStatusModalOpen(true);
     };
 
-    const handleStatusChangeConfirm = (id, newStatus) => {
-        api.patch(`/users/${id}`, { status: newStatus })
+    const handleStatusChangeConfirm = (userId, newStatus) => {
+        api.patch(`/users/${userId}`, { status: newStatus })
             .then(() => {
-                setUsers(users.map(u => u.id === id ? { ...u, status: newStatus } : u));
+                setUsers(users.map(u => u.userId === userId ? { ...u, status: newStatus } : u));
                 setIsStatusModalOpen(false);
             });
     };

@@ -47,7 +47,7 @@ const GroupStatusChangeModal = ({ show, group, targetAction, onConfirm, onClose 
                         <button className="btn btn-secondary" onClick={onClose}>취소</button>
                         <button
                             className={`btn ${buttonClass}`}
-                            onClick={() => onConfirm(group.id, targetAction)}
+                            onClick={() => onConfirm(group.groupId, targetAction)}
                         >
                             확인
                         </button>

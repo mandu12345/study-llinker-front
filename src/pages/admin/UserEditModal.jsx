@@ -64,8 +64,8 @@ const UserEditModal = ({ user, onSave, onClose }) => {
                                     value={editedUser.role} 
                                     onChange={handleChange}
                                 >
-                                    <option value="USER">USER (일반 사용자)</option>
-                                    <option value="ADMIN">ADMIN (관리자)</option>
+                                    <option value="MEMBER">MEMBER (일반 사용자)</option>
+                                    <option value="LEADER">LEADER (리더)</option>
                                 </select>
                             </div>
                             
