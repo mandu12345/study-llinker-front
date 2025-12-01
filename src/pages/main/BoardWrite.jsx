@@ -1,8 +1,6 @@
-// src/pages/main/BoardWrite.jsx
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { AuthContext } from "../../auth/AuthContext";
 import api from "../../api/axios";
-import MapModal from "./MapModal";
 
 const BoardWrite = ({ defaultType }) => {
   const { user } = useContext(AuthContext);
@@ -12,36 +10,48 @@ const BoardWrite = ({ defaultType }) => {
   const [content, setContent] = useState("");
   const [type, setType] = useState(defaultType || "FREE");
 
-  // 후기 전용 필드
-  const [rating, setRating] = useState(0); // ⭐ 평점 (1~5)
+  // REVIEW 전용 필드
+  const [rating, setRating] = useState(0);
+  const [joinedGroups, setJoinedGroups] = useState([]); // 가입된 그룹 목록
+  const [selectedGroupId, setSelectedGroupId] = useState(""); // 선택된 스터디 ID
 
-  // 위치 관련 (후기/자유게시판 공용)
-  const [latitude, setLatitude] = useState(null);
-  const [longitude, setLongitude] = useState(null);
-  const [address, setAddress] = useState("");
-  const [showMap, setShowMap] = useState(false);
+  // 후기 작성 시: 가입된 스터디 목록 불러오기
+  useEffect(() => {
+    if (type !== "REVIEW" || !userId) return;
 
-  // ✅ 지도에서 좌표 선택 시 실행
-  const handleLocationSelect = (lat, lng) => {
-    setLatitude(lat);
-    setLongitude(lng);
+    const loadJoinedGroups = async () => {
+      try {
+        // 1) 전체 스터디 목록 조회
+        const groupsRes = await api.get("/study-groups");
+        const groups = groupsRes.data || [];
 
-    if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services) {
-      console.error("Kakao Maps 서비스가 로드되지 않았습니다.");
-      return;
-    }
+        const myGroups = [];
 
-    const geocoder = new window.kakao.maps.services.Geocoder();
-    geocoder.coord2RegionCode(lng, lat, (result, status) => {
-      if (status === window.kakao.maps.services.Status.OK && result[0]) {
-        const region = result[0];
-        const fullAddress = `${region.region_1depth_name} ${region.region_2depth_name} ${region.region_3depth_name}`;
-        setAddress(fullAddress);
+        // 2) 각 스터디에서 내가 멤버인지 검사
+        for (const g of groups) {
+          try {
+            const memberRes = await api.get(
+              `/study-groups/${g.groupId}/members/${userId}`
+            );
+
+            if (memberRes.data?.status === "APPROVED") {
+              myGroups.push(g);
+            }
+          } catch (err) {
+            // 가입 안 된 스터디는 404 or not found → 건너뜀
+          }
+        }
+
+        setJoinedGroups(myGroups);
+      } catch (err) {
+        console.error("스터디 목록 로딩 실패:", err);
       }
-    });
-  };
+    };
 
-  // ✅ 게시글 등록
+    loadJoinedGroups();
+  }, [type, userId]);
+
+  // 게시글 등록
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -50,81 +60,79 @@ const BoardWrite = ({ defaultType }) => {
       return;
     }
 
-    // 유효성 검사
     if (!title.trim() || !content.trim()) {
-      alert("제목과 내용을 모두 입력하세요.");
-      return;
-    }
-    if (title.length > 50) {
-      alert("제목은 50자 이내로 입력하세요.");
+      alert("제목과 내용을 입력하세요.");
       return;
     }
 
     if (type === "REVIEW") {
-      if (content.length > 500) {
-        alert("후기 내용은 500자 이내로 작성해주세요.");
+      // REVIEW 유효성
+      if (rating < 1 || rating > 5) {
+        alert("평점은 1~5 사이입니다.");
         return;
       }
-      if (rating < 1 || rating > 5) {
-        alert("후기 평점은 1~5점 사이로 입력하세요.");
+      if (!selectedGroupId) {
+        alert("후기를 남길 스터디를 선택하세요.");
+        return;
+      }
+      if (content.length > 500) {
+        alert("후기 내용은 500자 이내여야 합니다.");
         return;
       }
     } else {
+      // FREE 유효성
       if (content.length > 2000) {
-        alert("게시글 내용은 2000자 이하로 작성 가능합니다.");
+        alert("게시글 내용은 2000자 이내여야 합니다.");
         return;
       }
     }
 
     try {
-      // 1️⃣ 먼저 게시글 생성 (FREE / REVIEW 공통)
+      // 1) 게시글 생성
       const postRes = await api.post(
         `/study-posts?leaderId=${userId}`,
         {
           title,
           content,
-          type, // 'FREE' | 'STUDY' | 'REVIEW'
-          latitude,
-          longitude,
-          location: address || null,
+          type,
+          groupId: type === "REVIEW" ? selectedGroupId : null, 
         }
       );
 
-      const postData = postRes.data || {};
-      const postId = postData.postId || postData.post_id || postData.id;
+      const postId = postRes.data?.postId;
 
       if (!postId) {
-        throw new Error("게시글 ID를 가져오지 못했습니다.");
+        throw new Error("postId를 가져올 수 없음");
       }
 
-      // 2️⃣ REVIEW 타입인 경우 → 리뷰 별도 생성
+      // 2) 리뷰 생성 (REVIEW 전용)
       if (type === "REVIEW") {
         await api.post(`/study-posts/${postId}/reviews`, {
           rating,
-          content, // 리뷰 내용 (게시글 내용과 동일하게 사용)
+          content,
         });
-        alert("후기 등록이 완료되었습니다.");
+        alert("후기 등록 완료!");
       } else {
-        alert("게시글이 성공적으로 등록되었습니다.");
+        alert("게시글 등록 완료!");
       }
 
-      // 폼 초기화
+      // 초기화
       setTitle("");
       setContent("");
       setRating(0);
-      setLatitude(null);
-      setLongitude(null);
-      setAddress("");
+      setSelectedGroupId("");
       setType(defaultType || "FREE");
+
     } catch (err) {
-      console.error("글 작성 실패:", err);
-      alert("글 작성에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      console.error(err);
+      alert("글 작성 실패. 잠시 후 다시 시도해주세요.");
     }
   };
 
   return (
     <div className="container mt-3">
       <h3>게시글 작성</h3>
+
       <form onSubmit={handleSubmit}>
         {/* 제목 */}
         <div className="mb-2">
@@ -164,11 +172,36 @@ const BoardWrite = ({ defaultType }) => {
           >
             <option value="FREE">자유게시판</option>
             <option value="REVIEW">스터디 리뷰</option>
-            {/* 나중에 필요하면 STUDY 타입도 추가 가능 */}
           </select>
         </div>
 
-        {/* 후기 평점 (REVIEW일 때만 표시) */}
+        {/* REVIEW 전용: 가입된 스터디 선택 */}
+        {type === "REVIEW" && (
+          <div className="mb-2">
+            <label className="form-label">어떤 스터디에 대한 후기인가요?</label>
+            <select
+              className="form-select"
+              value={selectedGroupId}
+              onChange={(e) => setSelectedGroupId(e.target.value)}
+              required
+            >
+              <option value="">스터디 선택</option>
+              {joinedGroups.map((g) => (
+                <option key={g.groupId} value={g.groupId}>
+                  {g.title}
+                </option>
+              ))}
+            </select>
+
+            {joinedGroups.length === 0 && (
+              <small className="text-danger">
+                가입된 스터디가 없습니다. 스터디에 가입해야 후기를 남길 수 있습니다.
+              </small>
+            )}
+          </div>
+        )}
+
+        {/* REVIEW 전용: 평점 */}
         {type === "REVIEW" && (
           <div className="mb-2">
             <label className="form-label">평점 (1~5)</label>
@@ -179,42 +212,17 @@ const BoardWrite = ({ defaultType }) => {
               max="5"
               value={rating}
               onChange={(e) => setRating(Number(e.target.value))}
-              required
               style={{ width: "100px" }}
+              required
             />
           </div>
         )}
-
-        {/* 위치 선택 (선택 사항) */}
-        <div className="mb-2">
-          <label className="form-label">스터디 위치 (선택)</label>
-          <button
-            type="button"
-            className="btn btn-outline-primary ms-2"
-            onClick={() => setShowMap(true)}
-          >
-            위치 선택
-          </button>
-          {address && (
-            <p className="mt-2">
-              선택된 위치: <b>{address}</b>
-            </p>
-          )}
-        </div>
 
         {/* 등록 버튼 */}
         <button className="btn btn-primary" type="submit">
           등록
         </button>
       </form>
-
-      {/* 지도 모달 */}
-      {showMap && (
-        <MapModal
-          onClose={() => setShowMap(false)}
-          onSelectLocation={handleLocationSelect}
-        />
-      )}
     </div>
   );
 };

@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Chart from "chart.js/auto";
-import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import api from "../../api/axios";
 
@@ -8,17 +7,23 @@ const UserBasicDashboard = () => {
   const [schedules, setSchedules] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
+  const pieChartRef = useRef(null);
+  const barChartRef = useRef(null);
+
 
   const userId = Number(localStorage.getItem("userId"));
 
-  // 1) API 호출
+  // 1) 필요한 API만 호출
   const loadData = async () => {
     try {
+      // 내 일정 조회
       const scheduleRes = await api.get("/study-schedules/me");
       setSchedules(scheduleRes.data);
 
+      // 내 출석 조회
       const attendanceRes = await api.get(`/attendance/user/${userId}`);
       setAttendance(attendanceRes.data);
+
     } catch (err) {
       console.error(err);
       alert("대시보드 데이터를 불러오는 데 실패했습니다.");
@@ -31,24 +36,24 @@ const UserBasicDashboard = () => {
     loadData();
   }, []);
 
-  // 출석 현황 계산
+  // 2) 출석 현황 계산
   const attendanceStats = {
     present: attendance.filter((a) => a.status === "PRESENT").length,
     late: attendance.filter((a) => a.status === "LATE").length,
     absent: attendance.filter((a) => a.status === "ABSENT").length,
   };
 
-  // 월별 참여 횟수 계산
+  // 3) 월별 참여 횟수 계산
   const monthMap = {};
   schedules.forEach((s) => {
-  const m = new Date(s.start_time).getMonth() + 1; // 1~12
-  monthMap[m] = (monthMap[m] || 0) + 1;
-});
+    const m = new Date(s.start_time).getMonth() + 1;
+    monthMap[m] = (monthMap[m] || 0) + 1;
+  });
 
-const dynamicLabels = Object.keys(monthMap).map((m) => `${m}월`);
-const dynamicData = Object.values(monthMap);
+  const dynamicLabels = Object.keys(monthMap).map((m) => `${m}월`);
+  const dynamicData = Object.values(monthMap);
 
-  // 이번 주 날짜 계산
+  // 4) 이번 주 날짜 계산
   const now = new Date();
   const startOfWeek = new Date(now);
   startOfWeek.setDate(now.getDate() - now.getDay());
@@ -63,7 +68,7 @@ const dynamicData = Object.values(monthMap);
     return d >= startOfWeek && d <= endOfWeek;
   });
 
-  // 목표 달성률 계산
+  // 5) 목표 달성률 계산
   const target = weeklySchedules.length;
   const done = weeklySchedules.filter(
     (s) => new Date(s.end_time) < new Date()
@@ -71,13 +76,18 @@ const dynamicData = Object.values(monthMap);
 
   const goalPercent = target > 0 ? (done / target) * 100 : 0;
 
-  // 📌 차트 렌더링
+  // 6) 차트 렌더링
   useEffect(() => {
     if (loading) return;
 
     const ctx1 = document.getElementById("attendanceRatioChart");
     if (ctx1) {
-      new Chart(ctx1, {
+      // 기존 차트 제거
+      if (pieChartRef.current) {
+        pieChartRef.current.destroy();
+      }
+
+      pieChartRef.current = new Chart(ctx1, {
         type: "pie",
         data: {
           labels: ["출석", "지각", "결석"],
@@ -96,33 +106,44 @@ const dynamicData = Object.values(monthMap);
     }
 
     const ctx2 = document.getElementById("participationCountChart");
-  if (ctx2) {
-    new Chart(ctx2, {
-      type: "bar",
-      data: {
-        labels: dynamicLabels,
-        datasets: [
-          {
-            label: "참여 횟수",
-            data: dynamicData,
-            backgroundColor: "#198754",
-          },
-        ],
-      },
-    });
-  }
-}, [loading, schedules]);
+    if (ctx2) {
+      // 기존 차트 제거
+      if (barChartRef.current) {
+        barChartRef.current.destroy();
+      }
+
+      barChartRef.current = new Chart(ctx2, {
+        type: "bar",
+        data: {
+          labels: dynamicLabels,
+          datasets: [
+            {
+              label: "참여 횟수",
+              data: dynamicData,
+              backgroundColor: "#198754",
+            },
+          ],
+        },
+      });
+    }
+  }, [loading, schedules]);
+
+  useEffect(() => {
+    return () => {
+      if (pieChartRef.current) pieChartRef.current.destroy();
+      if (barChartRef.current) barChartRef.current.destroy();
+    };
+  }, []);
 
   return (
     <div className="container mb-4">
       <h2 className="dashboard-title text-center my-4">사용자 대시보드</h2>
 
-      {/* 로딩 화면 */}
       {loading && <p className="text-center mt-4">데이터 불러오는 중...</p>}
 
       {!loading && (
         <>
-          {/* 출석 및 참여 현황 */}
+          {/* 출석/참여 현황 */}
           <div className="row g-4">
             <div className="col-md-6">
               <div className="card">

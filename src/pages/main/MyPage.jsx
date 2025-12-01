@@ -6,28 +6,28 @@ import api from "../../api/axios";
 const MyPage = () => {
   const navigate = useNavigate();
 
-  // 상태값
   const [userInfo, setUserInfo] = useState(null);
   const [manner, setManner] = useState(null);
   const [joinedGroups, setJoinedGroups] = useState([]);
+  const [activity, setActivity] = useState({
+    posts: 0,
+    reviews: 0,
+    comments: 0,
+  });
   const [loading, setLoading] = useState(true);
 
-  // -------------------------------------
   // 1) 사용자 정보 조회
-  // -------------------------------------
   const fetchUserProfile = async () => {
     try {
       const res = await api.get("/users/profile");
       setUserInfo(res.data);
-      return res.data.user_id; // userId 반환
+      return res.data;
     } catch (err) {
       console.error("사용자 정보 조회 오류:", err);
     }
   };
 
-  // -------------------------------------
   // 2) 참여 그룹 조회
-  // -------------------------------------
   const fetchJoinedGroups = async (userId) => {
     try {
       const res = await api.get(`/users/${userId}/groups`);
@@ -37,9 +37,7 @@ const MyPage = () => {
     }
   };
 
-  // -------------------------------------
-  // 3) 매너점수 조회
-  // -------------------------------------
+  // 3) 매너점수 조회 
   const fetchMannerScore = async (userId) => {
     try {
       const res = await api.get(`/manners/${userId}`);
@@ -49,20 +47,77 @@ const MyPage = () => {
     }
   };
 
-  // -------------------------------------
+  // 4) 활동 이력 조회
+  const fetchActivityHistory = async (userId, username) => {
+    try {
+      // (1) 전체 게시글 가져와서 내가 쓴 글만 필터
+      const postsRes = await api.get("/study-posts");
+      const myPosts = postsRes.data.filter((p) => p.author === username);
+      const postCount = myPosts.filter((p) => p.type === "FREE").length;
+      const reviewCount = myPosts.filter((p) => p.type === "REVIEW").length;
+
+      // (2) 게시글별 댓글을 모아 필터링
+      let commentCount = 0;
+      for (const post of postsRes.data) {
+        try {
+          const cmRes = await api.get(`/study-posts/${post.postId}/comments`);
+          const myComments = cmRes.data.filter((c) => c.userId === userId);
+          commentCount += myComments.length;
+        } catch (e) {
+          // 댓글 없는 글은 무시
+        }
+      }
+
+      setActivity({
+        posts: postCount,
+        reviews: reviewCount,
+        comments: commentCount,
+      });
+    } catch (err) {
+      console.error("활동 이력 계산 오류:", err);
+    }
+  };
+
+  // 5) 회원 탈퇴
+  const handleDeleteAccount = async () => {
+  if (!window.confirm("정말 계정을 탈퇴하시겠습니까?\n탈퇴 후 복구는 불가능합니다.")) {
+    return;
+  }
+
+  try {
+    await api.delete(`/users/${userInfo.user_id}`);
+
+    alert("회원 탈퇴가 완료되었습니다.");
+
+    // JWT 토큰 삭제
+    localStorage.removeItem("token");
+
+    // 로그인 페이지로 이동
+    navigate("/login");
+  } catch (err) {
+    console.error("회원 탈퇴 오류:", err);
+    alert("회원 탈퇴 실패! 관리자에게 문의하세요.");
+  }
+};
+
+
   // 전체 데이터 로드
-  // -------------------------------------
   useEffect(() => {
-    const loadData = async () => {
-      const user = await fetchUserProfile(); // userId 얻음
+    const load = async () => {
+      const user = await fetchUserProfile();
       if (user) {
-        await fetchJoinedGroups(user);
-        await fetchMannerScore(user);
+        const userId = user.user_id;
+        const username = user.username;
+
+        await Promise.all([
+          fetchJoinedGroups(userId),
+          fetchMannerScore(userId),
+          fetchActivityHistory(userId, username),
+        ]);
       }
       setLoading(false);
     };
-
-    loadData();
+    load();
   }, []);
 
   if (loading) return <div className="container mt-4">로딩중...</div>;
@@ -88,7 +143,7 @@ const MyPage = () => {
             >
               내 정보 수정
             </button>
-            <button className="btn btn-outline-danger">
+            <button className="btn btn-outline-danger" onClick={handleDeleteAccount}>
               회원 탈퇴
             </button>
           </div>
@@ -113,12 +168,6 @@ const MyPage = () => {
               {manner?.current_manner_score ?? 0}점
             </div>
           </div>
-
-          <small className="text-muted">
-            출석 점수: {manner?.attendance_score ?? 0} / 
-            리더 점수: {manner?.leader_score ?? 0} / 
-            위반 점수: {manner?.violation_score ?? 0}
-          </small>
         </div>
       </div>
 
@@ -151,14 +200,14 @@ const MyPage = () => {
         </div>
       </div>
 
-      {/* ------------------ 활동 이력 (추후 API 연결용) ------------------ */}
+      {/* ------------------ 활동 이력 ------------------ */}
       <div className="card shadow-sm mb-5">
         <div className="card-body">
           <h5 className="card-title mb-3">📈 활동 이력</h5>
-          <p>출석률: 준비 중</p>
-          <p>후기 작성: 준비 중</p>
-          <p>게시글 작성: 준비 중</p>
-          <p>댓글 수: 준비 중</p>
+
+          <p>후기 작성: {activity.reviews}개</p>
+          <p>게시글 작성: {activity.posts}개</p>
+          <p>댓글 수: {activity.comments}개</p>
         </div>
       </div>
     </div>

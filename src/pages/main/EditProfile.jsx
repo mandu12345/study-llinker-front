@@ -9,9 +9,7 @@ const EditProfile = () => {
   const [newTag, setNewTag] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // ------------------------------------
   // 1. 사용자 정보 불러오기
-  // ------------------------------------
   const fetchProfile = async () => {
     try {
       const res = await api.get("/users/profile"); // 토큰 기반
@@ -40,9 +38,7 @@ const EditProfile = () => {
 
   if (loading || !user) return <div className="container mt-4">로딩중...</div>;
 
-  // ------------------------------------
   // 2. 태그 추가
-  // ------------------------------------
   const handleAddTag = () => {
     if (newTag && !user.interest_tags.includes(newTag)) {
       setUser({
@@ -61,27 +57,32 @@ const EditProfile = () => {
     });
   };
 
-  // ------------------------------------
   // 3. 정보 수정 요청
-  // ------------------------------------
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const body = {
+  try {
+    // 1) 기본 정보 수정 (이름, 태그 등)
+    await api.put(`/users/${user.user_id}`, {
       name: user.name,
-      password: user.password || null,
       interest_tags: user.interest_tags,
-    };
+    });
 
-    try {
-      await api.put(`/users/${user.user_id}`, body);
-      alert("정보 수정 완료!");
-      navigate("/main/mypage");
-    } catch (err) {
-      console.error("정보 수정 오류:", err);
-      alert("수정 실패! 서버 상태를 확인하세요.");
+    // 2) 새 비밀번호가 입력된 경우에만 비밀번호 변경 API 호출
+    if (user.password && user.password.trim() !== "") {
+      await api.patch(`/users/${user.user_id}/password`, {
+        password: user.password,
+      });
     }
-  };
+
+    alert("정보 수정이 완료되었습니다!");
+    navigate("/main/mypage");
+
+  } catch (err) {
+    console.error("정보 수정 오류:", err);
+    alert("정보 수정에 실패했습니다. 서버 상태를 확인하세요.");
+  }
+};
 
   return (
     <div className="container mt-4">

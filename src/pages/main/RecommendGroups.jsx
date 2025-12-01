@@ -1,4 +1,3 @@
-// src/pages/main/RecommendGroups.jsx
 import React, { useState, useEffect } from "react";
 import api from "../../api/axios";
 
@@ -12,6 +11,22 @@ const RecommendGroups = () => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedAddress, setSelectedAddress] = useState("");
+
+  const [userId, setUserId] = useState(null);
+
+  // 0) 로그인한 사용자 정보 가져오기 → userId 필요함
+  useEffect(() => {
+    const loadUserInfo = async () => {
+      try {
+        const res = await api.get("/users/profile");
+        setUserId(res.data.user.userId);
+      } catch (err) {
+        console.error("유저 정보 불러오기 실패:", err);
+      }
+    };
+
+    loadUserInfo();
+  }, []);
 
   // 1) 사용자 현재 위치 가져오기
   useEffect(() => {
@@ -28,13 +43,14 @@ const RecommendGroups = () => {
     }
   }, []);
 
-  // 2) 추천 API로 스터디 목록 불러오기
+  // 2) 추천 API 호출
   const loadRecommendations = async (
     loc = userLocation,
     rad = radius,
-    alg = algorithm
+    alg = algorithm,
+    uid = userId
   ) => {
-    if (!loc) return;
+    if (!loc || !uid) return;
 
     try {
       let url = "";
@@ -49,9 +65,11 @@ const RecommendGroups = () => {
 
       const res = await api.get(url, {
         params: {
+          userId: uid,
+          limit: 10,
           lat: loc.lat,
-          lon: loc.lng,
-          radius: rad,
+          lng: loc.lng,
+          radiuskm: rad,
         },
       });
 
@@ -64,16 +82,16 @@ const RecommendGroups = () => {
   useEffect(() => {
     loadRecommendations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userLocation, radius, algorithm]);
+  }, [userLocation, radius, algorithm, userId]);
 
-  // 3) 참여 신청 (POST) + 완료 후 목록 새로고침
+  // 3) 참여 신청 후 자동 새로고침
   const handleJoin = async (groupId) => {
     try {
       await api.post(`/study-groups/${groupId}/members`);
       alert("참여 신청이 완료되었습니다! (승인 대기)");
 
-      // 신청 후 최신 추천 목록 다시 불러오기
-      await loadRecommendations();
+      // 신청 이후 최신 추천 목록 다시 불러오기
+      loadRecommendations();
     } catch (err) {
       console.error("참여 신청 실패:", err);
       alert("참여 신청 중 오류가 발생했습니다.");
@@ -94,15 +112,18 @@ const RecommendGroups = () => {
 
       const map = new window.kakao.maps.Map(container, {
         center: new window.kakao.maps.LatLng(
-          groups[0].latitude,
-          groups[0].longitude
+          groups[0].lat || groups[0].latitude,
+          groups[0].lng || groups[0].longitude
         ),
         level: 5,
       });
 
       groups.forEach((g) => {
         new window.kakao.maps.Marker({
-          position: new window.kakao.maps.LatLng(g.latitude, g.longitude),
+          position: new window.kakao.maps.LatLng(
+            g.lat || g.latitude,
+            g.lng || g.longitude
+          ),
           map,
         });
       });
@@ -115,9 +136,10 @@ const RecommendGroups = () => {
     if (!window.kakao || !window.kakao.maps) return;
 
     const geocoder = new window.kakao.maps.services.Geocoder();
+
     const coord = new window.kakao.maps.LatLng(
-      selectedGroup.latitude,
-      selectedGroup.longitude
+      selectedGroup.lat || selectedGroup.latitude,
+      selectedGroup.lng || selectedGroup.longitude
     );
 
     geocoder.coord2Address(coord.getLng(), coord.getLat(), (result, status) => {
@@ -176,19 +198,21 @@ const RecommendGroups = () => {
       {/* 추천 스터디 리스트 */}
       <div className="row">
         {groups.map((group) => (
-          <div key={group.groupId || group.id} className="col-md-6 mb-3">
+          <div key={group.studyGroupId} className="col-md-6 mb-3">
             <div className="card shadow-sm">
               <div className="card-body">
-                <h5 className="card-title">{group.title}</h5>
+                <h5 className="card-title">{group.name}</h5>
                 <p className="card-text">
                   {group.description}
                   <br />
                   태그:{" "}
-                  {group.category?.map((tag, idx) => (
-                    <span key={idx} className="badge bg-secondary me-1">
-                      #{tag}
+                  {group.category && (
+                    <span className="badge bg-secondary me-1">
+                      #{group.category}
                     </span>
-                  ))}
+                  )}
+                  <br />
+                  거리: {group.distanceKm?.toFixed(1)} km
                   <br />
                   평점: ⭐ {group.rating || "-"}
                 </p>
@@ -206,9 +230,7 @@ const RecommendGroups = () => {
 
                   <button
                     className="btn btn-primary btn-sm"
-                    onClick={() =>
-                      handleJoin(group.groupId || group.id)
-                    }
+                    onClick={() => handleJoin(group.studyGroupId)}
                   >
                     참여 신청
                   </button>
@@ -232,7 +254,7 @@ const RecommendGroups = () => {
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header bg-primary text-white">
-                <h5 className="modal-title">{selectedGroup.title}</h5>
+                <h5 className="modal-title">{selectedGroup.name}</h5>
                 <button
                   type="button"
                   className="btn-close btn-close-white"
@@ -240,29 +262,22 @@ const RecommendGroups = () => {
                 ></button>
               </div>
               <div className="modal-body">
+                <p><strong>설명:</strong> {selectedGroup.description}</p>
                 <p>
-                  <strong>리더:</strong> {selectedGroup.leader}
-                </p>
-                <p>
-                  <strong>설명:</strong> {selectedGroup.description}
-                </p>
-                <p>
-                  <strong>태그:</strong>{" "}
-                  {selectedGroup.category?.map((tag, idx) => (
-                    <span key={idx} className="badge bg-info text-dark me-1">
-                      #{tag}
+                  <strong>카테고리:</strong>{" "}
+                  {selectedGroup.category && (
+                    <span className="badge bg-info text-dark me-1">
+                      #{selectedGroup.category}
                     </span>
-                  ))}
+                  )}
                 </p>
                 <p>
                   <strong>위치:</strong>{" "}
                   {selectedAddress
                     ? selectedAddress
-                    : `${selectedGroup.latitude}, ${selectedGroup.longitude}`}
+                    : `${selectedGroup.lat}, ${selectedGroup.lng}`}
                 </p>
-                <p>
-                  <strong>평점:</strong> ⭐ {selectedGroup.rating}
-                </p>
+                <p><strong>평점:</strong> ⭐ {selectedGroup.rating}</p>
               </div>
               <div className="modal-footer">
                 <button

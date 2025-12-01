@@ -1,4 +1,3 @@
-// src/pages/main/Board.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
@@ -6,38 +5,48 @@ import api from "../../api/axios";
 const Board = () => {
   const [tab, setTab] = useState("FREE"); // FREE | REVIEW
   const [posts, setPosts] = useState([]);
-  const [allPosts, setAllPosts] = useState([]); // 검색용 원본 목록
-  const [keyword, setKeyword] = useState(""); // 검색 키워드
-  const [rating, setRating] = useState(0); // 후기 평점
-  const [content, setContent] = useState(""); // 후기 작성 내용
+  const [allPosts, setAllPosts] = useState([]);
+  const [keyword, setKeyword] = useState("");
+  
+  // 후기 작성
+  const [rating, setRating] = useState(0);
+  const [content, setContent] = useState("");
+
+  // 댓글
   const [newComment, setNewComment] = useState("");
-  const [comments, setComments] = useState({}); // postId별 댓글 목록
+  const [comments, setComments] = useState({}); // postId -> comment list
+
   const navigate = useNavigate();
 
-  // 공통 게시글 로더 (탭 변경/후기 등록 후 재사용)
+  // 1) 게시글 전체 조회
   const fetchPosts = async (currentTab = tab) => {
     try {
       const res = await api.get("/study-posts");
+      const list = Array.isArray(res.data) ? res.data : [];
 
-      const data = Array.isArray(res.data)
-        ? res.data
-        : res.data.posts || []; // 백엔드가 {posts:[...]} 형식일 수도 있음
-
-      const filtered = data.filter((p) => p.type === currentTab);
-      setAllPosts(data);
-      setPosts(filtered);
+      setAllPosts(list);
+      setPosts(list.filter((p) => p.type === currentTab));
     } catch (err) {
-      console.error(err);
+      console.error("게시글 조회 실패:", err);
     }
   };
 
-  // 게시글 목록 불러오기 (탭 변경 시)
+  // 2) 댓글 전체 조회
+  const fetchComments = async (postId) => {
+    try {
+      const res = await api.get(`/study-posts/${postId}/comments`);
+      setComments((prev) => ({ ...prev, [postId]: res.data }));
+    } catch (err) {
+      console.error("댓글 조회 실패:", err);
+    }
+  };
+
+  // 탭 변경 시 게시글+댓글 로딩
   useEffect(() => {
     fetchPosts(tab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab]);
 
-  // 게시글/후기 검색 (클라이언트 필터링)
+  // 검색
   const handleSearch = () => {
     if (keyword.length < 2) {
       alert("검색어는 2자 이상 입력하세요.");
@@ -45,78 +54,52 @@ const Board = () => {
     }
 
     const lower = keyword.toLowerCase();
-
-    const filtered = allPosts.filter((p) => {
-      if (p.type !== tab) return false;
-      const title = (p.title || "").toLowerCase();
-      const body = (p.content || "").toLowerCase();
-      const author = (p.author || "").toLowerCase();
-      return (
-        title.includes(lower) ||
-        body.includes(lower) ||
-        author.includes(lower)
-      );
-    });
+    const filtered = allPosts.filter((p) =>
+      p.type === tab &&
+      (
+        (p.title || "").toLowerCase().includes(lower) ||
+        (p.content || "").toLowerCase().includes(lower) ||
+        (p.author || "").toLowerCase().includes(lower)
+      )
+    );
 
     setPosts(filtered);
   };
 
-  // 후기 작성 (게시글 + 리뷰 두 번 호출, BoardWrite와 동일 패턴)
+  // 후기 작성 — 게시글 생성 → 리뷰 생성
   const handleAddReview = async (e) => {
     e.preventDefault();
 
     if (!rating || !content) {
-      alert("평점(1~5)과 내용을 입력하세요.");
-      return;
-    }
-    if (content.length > 500) {
-      alert("후기 내용은 500자 이내여야 합니다.");
+      alert("평점과 내용을 입력하세요.");
       return;
     }
     if (rating < 1 || rating > 5) {
-      alert("평점은 1~5 사이로 입력하세요.");
+      alert("평점은 1~5 사이입니다.");
       return;
     }
 
     try {
-      // 1) 로그인 사용자 정보에서 userId 가져오기
-      const profileRes = await api.get("/users/profile");
-      const userId = profileRes.data.user.userId;
-
-      // 2) 후기용 게시글 먼저 생성
-      const postRes = await api.post(
-        `/study-posts`,
-        {
-          title: "스터디 후기",
-          content,
-          type: "REVIEW",
-          latitude: null,
-          longitude: null,
-          location: null,
-        },
-        {
-          params: { leaderId: userId },
-        }
-      );
-
-      const postData = postRes.data || {};
-      const postId = postData.postId || postData.post_id || postData.id;
-
-      if (!postId) {
-        throw new Error("게시글 ID를 가져오지 못했습니다.");
-      }
-
-      // 3) 리뷰 생성
-      await api.post(`/study-posts/${postId}/reviews`, {
-        rating,
+      // 1) 게시글 생성
+      const postRes = await api.post("/study-posts", {
+        title: "스터디 후기",
         content,
+        type: "REVIEW",
+        rating
       });
 
-      alert("후기 등록이 완료되었습니다.");
+      const postId = postRes.data.postId;
+      if (!postId) throw new Error("postId 없음");
+
+      // 2) 리뷰 생성
+      await api.post(`/study-posts/${postId}/reviews`, {
+        rating,
+        content
+      });
+
+      alert("후기 등록 완료");
       setRating(0);
       setContent("");
-
-      // 후기 탭 목록 다시 로드
       fetchPosts("REVIEW");
     } catch (err) {
       console.error(err);
@@ -124,49 +107,56 @@ const Board = () => {
     }
   };
 
-  // 댓글 작성 (현재는 프론트 로컬 상태만 사용)
-  const handleAddComment = (postId) => {
+  // 댓글 작성
+  const handleAddComment = async (postId) => {
     if (!newComment.trim()) return;
-    if (newComment.length > 300) {
-      alert("댓글은 300자 이내로 입력해주세요.");
-      return;
+
+    try {
+      await api.post(`/study-posts/${postId}/comments`, {
+        content: newComment
+      });
+
+      setNewComment("");
+      await fetchComments(postId);
+      alert("댓글 등록 완료");
+    } catch (err) {
+      console.error(err);
+      alert("댓글 등록 실패");
     }
-
-    setComments((prev) => ({
-      ...prev,
-      [postId]: [
-        ...(prev[postId] || []),
-        {
-          id: Date.now(),
-          content: newComment,
-          author: "나", // 나중에 백엔드 댓글 API 연동 시 서버 값으로 교체
-          createdAt: new Date().toLocaleString(),
-        },
-      ],
-    }));
-    setNewComment("");
-    alert("댓글이 등록되었습니다.");
   };
 
-  // 댓글 삭제 (역시 로컬 상태만)
-  const handleDeleteComment = (postId, commentId) => {
-    setComments((prev) => ({
-      ...prev,
-      [postId]: prev[postId].filter((c) => c.id !== commentId),
-    }));
-    alert("댓글이 삭제되었습니다.");
+  // 댓글 삭제
+  const handleDeleteComment = async (postId, commentId) => {
+    try {
+      await api.delete(`/study-posts/${postId}/comments/${commentId}`);
+      fetchComments(postId);
+      alert("댓글 삭제 완료");
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  // 신고 기능 (API 대신 안내만)
-  const handleReport = (postId) => {
-    const reason = prompt("신고 사유를 입력하세요 (필수)");
-    if (!reason || !reason.trim()) return;
-    alert("신고가 접수되었습니다. (백엔드 신고 API 연동 예정)");
-  };
+  // 신고
+  const handleReport = async (postId) => {
+  const reason = prompt("신고 사유를 입력하세요 (필수)");
+  if (!reason) return;
+
+  try {
+    await api.patch(`/study-posts/${postId}`, {
+      reported: true,
+      report_reason: reason
+    });
+
+    alert("신고가 접수되었습니다.");
+  } catch (err) {
+    console.error(err);
+    alert("신고 처리 중 오류가 발생했습니다.");
+  }
+};
 
   return (
     <div>
-      <h2>게시판</h2><br></br>
+      <h2>게시판</h2><br />
 
       {/* 탭 버튼 */}
       <div className="btn-group mb-3">
@@ -184,8 +174,7 @@ const Board = () => {
         </button>
       </div>
 
-      {/* 글쓰기 버튼 (자유게시판 전용) */}
-      {tab === "FREE" && (
+      {/* 글쓰기 버튼 */}
         <div className="mb-3 text-end">
           <button
             className="btn btn-success"
@@ -194,63 +183,33 @@ const Board = () => {
             ✍️ 글쓰기
           </button>
         </div>
-      )}
 
-      {/* 후기 작성 폼 (후기 탭일 때만 표시) */}
-      {tab === "REVIEW" && (
-        <form onSubmit={handleAddReview} className="mb-4">
-          <h5>후기 작성</h5>
-          <label>평점(1~5): </label>
-          <input
-            type="number"
-            min="1"
-            max="5"
-            value={rating}
-            onChange={(e) => setRating(Number(e.target.value))}
-            className="form-control mb-2"
-            style={{ width: "100px" }}
-          />
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="form-control mb-2"
-            placeholder="후기 내용을 입력하세요 (500자 이내)"
-            rows="3"
-          ></textarea>
-          <button className="btn btn-primary" type="submit">
-            등록
-          </button>
-        </form>
-      )}
-
-      {/* 검색창 */}
+      {/* 검색 */}
       <div className="input-group mb-3">
         <input
           type="text"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          placeholder="검색어 입력 (제목, 내용, 작성자)"
           className="form-control"
+          placeholder="검색어 입력"
         />
         <button className="btn btn-outline-secondary" onClick={handleSearch}>
           🔍 검색
         </button>
       </div>
 
-      {/* 게시글/후기 목록 */}
+      {/* 게시글 목록 */}
       {posts.length > 0 ? (
         <ul className="list-group">
           {posts.map((p) => (
             <li key={p.postId} className="list-group-item mb-2">
-              <div className="d-flex justify-content-between align-items-center">
+              <div className="d-flex justify-content-between">
                 <div>
                   <h5>{p.title}</h5>
                   {tab === "REVIEW" && p.rating && (
                     <p>⭐ 평점: {p.rating}/5</p>
                   )}
-                  <p className="mb-1 text-muted">
-                    {p.author} | {p.createdAt}
-                  </p>
+                  <p className="text-muted">{p.author} | {p.createdAt}</p>
                   <p>{p.content}</p>
                 </div>
                 <button
@@ -264,12 +223,20 @@ const Board = () => {
               {/* 댓글 목록 */}
               <div className="mt-3">
                 <h6>댓글</h6>
+
+                {/* 댓글 로딩 */}
+                {comments[p.postId] === undefined &&
+                  <button
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => fetchComments(p.postId)}
+                  >
+                    댓글 불러오기
+                  </button>
+                }
+
                 <ul className="list-group mb-2">
                   {(comments[p.postId] || []).map((c) => (
-                    <li
-                      key={c.id}
-                      className="list-group-item d-flex justify-content-between"
-                    >
+                    <li key={c.commentId} className="list-group-item d-flex justify-content-between">
                       <span>
                         <strong>{c.author}</strong>: {c.content}
                         <br />
@@ -277,20 +244,21 @@ const Board = () => {
                       </span>
                       <button
                         className="btn btn-sm btn-outline-danger"
-                        onClick={() => handleDeleteComment(p.postId, c.id)}
+                        onClick={() => handleDeleteComment(p.postId, c.commentId)}
                       >
                         삭제
                       </button>
                     </li>
                   ))}
                 </ul>
+
+                {/* 댓글 입력 */}
                 <div className="input-group">
                   <input
-                    type="text"
+                    className="form-control"
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    className="form-control"
-                    placeholder="댓글 입력 (300자 이하)"
+                    placeholder="댓글 입력"
                   />
                   <button
                     className="btn btn-outline-primary"
