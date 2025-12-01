@@ -1,64 +1,140 @@
-import React, { useState } from "react";
+// src/pages/main/MyPage.jsx
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import api from "../../api/axios";
 
 const MyPage = () => {
   const navigate = useNavigate();
 
-  // 더미 사용자 정보
-  const [userInfo] = useState({
-    username: "superuser",
-    name: "관리자",
-    email: "superuser@example.com",
-    interest_tags: ["Java", "React", "AI"],
+  const [userInfo, setUserInfo] = useState(null);
+  const [manner, setManner] = useState(null);
+  const [joinedGroups, setJoinedGroups] = useState([]);
+  const [activity, setActivity] = useState({
+    posts: 0,
+    reviews: 0,
+    comments: 0,
   });
+  const [loading, setLoading] = useState(true);
 
-  const [joinedGroups] = useState([
-    {
-      id: 1,
-      title: "Java 스터디",
-      leader: "홍길동",
-      members: 5,
-      max: 10,
-      location: "가천대 중앙도서관",
-      description: "Java 기본 문법과 객체지향 개념을 공부합니다.",
-      scheduleDate: "2025-11-01",
-      active: true,
-    },
-    {
-      id: 2,
-      title: "TOEIC 스터디",
-      leader: "김영희",
-      members: 8,
-      max: 10,
-      location: "분당 카페 24",
-      description: "매주 모의고사 풀이와 LC·RC 집중 학습.",
-      scheduleDate: "2025-11-05",
-      active: false,
-    },
-  ]);
-
-  const [mannerScore] = useState(84);
-  const [selectedGroup, setSelectedGroup] = useState(null); // 상세보기용
-
-  // 계정 탈퇴 (테스트용)
-  const handleDeleteAccount = () => {
-    if (window.confirm("정말 계정을 탈퇴하시겠습니까?")) {
-      alert("테스트 모드에서는 실제 탈퇴가 실행되지 않습니다.");
+  // 1) 사용자 정보 조회
+  const fetchUserProfile = async () => {
+    try {
+      const res = await api.get("/users/profile");
+      setUserInfo(res.data);
+      return res.data;
+    } catch (err) {
+      console.error("사용자 정보 조회 오류:", err);
     }
   };
+
+  // 2) 참여 그룹 조회
+  const fetchJoinedGroups = async (userId) => {
+    try {
+      const res = await api.get(`/users/${userId}/groups`);
+      setJoinedGroups(res.data);
+    } catch (err) {
+      console.error("참여 그룹 조회 오류:", err);
+    }
+  };
+
+  // 3) 매너점수 조회 
+  const fetchMannerScore = async (userId) => {
+    try {
+      const res = await api.get(`/manners/${userId}`);
+      setManner(res.data);
+    } catch (err) {
+      console.error("매너점수 조회 오류:", err);
+    }
+  };
+
+  // 4) 활동 이력 조회
+  const fetchActivityHistory = async (userId, username) => {
+    try {
+      // (1) 전체 게시글 가져와서 내가 쓴 글만 필터
+      const postsRes = await api.get("/study-posts");
+      const myPosts = postsRes.data.filter((p) => p.author === username);
+      const postCount = myPosts.filter((p) => p.type === "FREE").length;
+      const reviewCount = myPosts.filter((p) => p.type === "REVIEW").length;
+
+      // (2) 게시글별 댓글을 모아 필터링
+      let commentCount = 0;
+      for (const post of postsRes.data) {
+        try {
+          const cmRes = await api.get(`/study-posts/${post.postId}/comments`);
+          const myComments = cmRes.data.filter((c) => c.userId === userId);
+          commentCount += myComments.length;
+        } catch (e) {
+          // 댓글 없는 글은 무시
+        }
+      }
+
+      setActivity({
+        posts: postCount,
+        reviews: reviewCount,
+        comments: commentCount,
+      });
+    } catch (err) {
+      console.error("활동 이력 계산 오류:", err);
+    }
+  };
+
+  // 5) 회원 탈퇴
+  const handleDeleteAccount = async () => {
+  if (!window.confirm("정말 계정을 탈퇴하시겠습니까?\n탈퇴 후 복구는 불가능합니다.")) {
+    return;
+  }
+
+  try {
+    await api.delete(`/users/${userInfo.user_id}`);
+
+    alert("회원 탈퇴가 완료되었습니다.");
+
+    // JWT 토큰 삭제
+    localStorage.removeItem("token");
+
+    // 로그인 페이지로 이동
+    navigate("/login");
+  } catch (err) {
+    console.error("회원 탈퇴 오류:", err);
+    alert("회원 탈퇴 실패! 관리자에게 문의하세요.");
+  }
+};
+
+
+  // 전체 데이터 로드
+  useEffect(() => {
+    const load = async () => {
+      const user = await fetchUserProfile();
+      if (user) {
+        const userId = user.user_id;
+        const username = user.username;
+
+        await Promise.all([
+          fetchJoinedGroups(userId),
+          fetchMannerScore(userId),
+          fetchActivityHistory(userId, username),
+        ]);
+      }
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  if (loading) return <div className="container mt-4">로딩중...</div>;
 
   return (
     <div className="container mt-4">
       <h2 className="mb-4">내 프로필</h2>
 
-      {/* 기본 정보 */}
+      {/* ------------------ 기본 정보 ------------------ */}
       <div className="card mb-4 shadow-sm">
         <div className="card-body">
           <h5 className="card-title mb-3">👤 기본 정보</h5>
-          <p><strong>이름:</strong> {userInfo.name}</p>
-          <p><strong>아이디:</strong> {userInfo.username}</p>
-          <p><strong>이메일:</strong> {userInfo.email}</p>
-          <p><strong>관심사:</strong> {userInfo.interest_tags.join(", ")}</p>
+
+          <p><strong>이름:</strong> {userInfo?.name}</p>
+          <p><strong>아이디:</strong> {userInfo?.username}</p>
+          <p><strong>이메일:</strong> {userInfo?.email}</p>
+          <p><strong>관심사:</strong> {userInfo?.interestTags?.join(", ")}</p>
 
           <div className="d-flex justify-content-end mt-3">
             <button
@@ -74,42 +150,47 @@ const MyPage = () => {
         </div>
       </div>
 
-      {/* 매너점수 */}
+      {/* ------------------ 매너점수 ------------------ */}
       <div className="card mb-4 shadow-sm">
         <div className="card-body">
           <h5 className="card-title mb-3">🌟 매너점수</h5>
+
           <div className="progress" style={{ height: "25px" }}>
             <div
-              className={`progress-bar ${mannerScore >= 70 ? "bg-success" : "bg-warning"}`}
+              className={`progress-bar ${
+                (manner?.current_manner_score || 0) >= 70
+                  ? "bg-success"
+                  : "bg-warning"
+              }`}
               role="progressbar"
-              style={{ width: `${mannerScore}%` }}
+              style={{ width: `${manner?.current_manner_score || 0}%` }}
             >
-              {mannerScore}점
+              {manner?.current_manner_score ?? 0}점
             </div>
           </div>
         </div>
       </div>
 
-      {/* 참여 그룹 */}
+      {/* ------------------ 참여 스터디 그룹 ------------------ */}
       <div className="card mb-4 shadow-sm">
         <div className="card-body">
           <h5 className="card-title mb-3">📚 참여한 스터디 그룹</h5>
+
           {joinedGroups.length > 0 ? (
             <ul className="list-group">
               {joinedGroups.map((g) => (
                 <li
-                  key={g.id}
-                  className={`list-group-item d-flex justify-content-between align-items-center ${
-                    g.active ? "" : "text-secondary"
-                  }`}
-                  style={{ cursor: "pointer" }}
-                  onClick={() => setSelectedGroup(g)}
+                  key={g.group_id}
+                  className="list-group-item d-flex justify-content-between align-items-center"
                 >
                   <div>
-                    <strong>{g.title}</strong> <br />
-                    리더: {g.leader} / 인원: {g.members}/{g.max}
+                    <strong>{g.title}</strong>
+                    <br />
+                    리더: {g.leader_name}
                   </div>
-                  <span className="badge bg-primary">{g.scheduleDate}</span>
+                  <span className="badge bg-primary">
+                    상태: {g.status}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -119,15 +200,14 @@ const MyPage = () => {
         </div>
       </div>
 
-      {/* 활동 이력 */}
+      {/* ------------------ 활동 이력 ------------------ */}
       <div className="card shadow-sm mb-5">
         <div className="card-body">
           <h5 className="card-title mb-3">📈 활동 이력</h5>
-          <p>출석률: 92%</p>
-          <p>참여율: 88%</p>
-          <p>후기 작성: 3개</p>
-          <p>게시글 작성: 5개</p>
-          <p>댓글 수: 12개</p>
+
+          <p>후기 작성: {activity.reviews}개</p>
+          <p>게시글 작성: {activity.posts}개</p>
+          <p>댓글 수: {activity.comments}개</p>
         </div>
       </div>
     </div>
