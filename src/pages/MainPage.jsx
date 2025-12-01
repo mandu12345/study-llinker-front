@@ -25,9 +25,6 @@ import {
 } from "./main/ScheduleModals";
 import AttendanceModal from "./main/AttendanceModal";
 
-// ------------------------------
-// 사이드바 글씨 색 + 밑줄 제거 스타일
-// ------------------------------
 const sidebarStyles = {
   link: {
     color: "#000",

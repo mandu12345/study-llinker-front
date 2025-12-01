@@ -10,12 +10,12 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem("token");
     if (token) {
       try {
-        const decoded = jwtDecode(token); // JWT 디코딩
+        const decoded = jwtDecode(token);
         setUser({
           token,
           role: decoded.role,
-          userId: decoded.userId,     // JWT claim에 넣은 userId
-          username: decoded.sub       // setSubject(username)
+          userId: decoded.userId,
+          username: decoded.sub
         });
       } catch (err) {
         console.error("JWT decode error", err);
@@ -24,9 +24,10 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  // token만 받는 구조를 확정
   const login = (token) => {
     localStorage.setItem("token", token);
-    // 디코딩해서 user 정보 저장
+
     try {
       const decoded = jwtDecode(token);
       setUser({

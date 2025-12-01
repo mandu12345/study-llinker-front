@@ -65,7 +65,7 @@ const Login = () => {
     try {
       const res = await api.post("/auth/tokens", { username, password });
 
-      const token = res.data.token;
+      const token = res.data.accessToken;
 
       if (!token) {
         setModal({
