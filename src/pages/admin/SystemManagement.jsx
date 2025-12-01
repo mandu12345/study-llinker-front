@@ -4,6 +4,7 @@ import React from "react";
 import { Routes, Route, Link, useLocation, Navigate } from "react-router-dom";
 import NotificationManager from "./NotificationManager";
 import api from "../../api/axios";
+import { FaDatabase, FaBroom } from "react-icons/fa";
 
 // -----------------------------------------------------------------
 // 시스템 운영 컴포넌트
@@ -31,22 +32,55 @@ const SystemOperator = () => {
     };
 
     return (
-        <div className="card">
-            <div className="card-header">시스템 운영</div>
-            <div className="card-body d-flex flex-column">
-                <p className="text-muted">시스템 운영에 필요한 기능들입니다.</p>
+        <div className="card shadow-sm">
+            <div className="card-header fw-bold">시스템 운영</div>
 
-                <button className="btn btn-warning mb-3" onClick={handleBackup}>
-                    백업 스냅샷 관리
-                </button>
+            <div className="card-body">
 
-                <button className="btn btn-danger" onClick={handleCacheInvalidate}>
-                    캐시 무효화 버튼
-                </button>
+                <p className="text-muted mb-4">시스템 관리 작업을 수행할 수 있습니다.</p>
+
+                <div className="row g-3">
+
+                    {/* 백업 스냅샷 */}
+                    <div className="col-md-6">
+                        <div className="p-3 border rounded d-flex align-items-center justify-content-between bg-light">
+                            <div>
+                                <h6 className="mb-1 fw-bold">백업 스냅샷</h6>
+                                <small className="text-muted">전체 시스템 백업 생성</small>
+                            </div>
+                            <button
+                                className="btn btn-outline-primary"
+                                onClick={handleBackup}
+                            >
+                                <FaDatabase size={18} className="me-1" />
+                                실행
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* 캐시 무효화 */}
+                    <div className="col-md-6">
+                        <div className="p-3 border rounded d-flex align-items-center justify-content-between bg-light">
+                            <div>
+                                <h6 className="mb-1 fw-bold">캐시 무효화</h6>
+                                <small className="text-muted">시스템 전체 캐시 초기화</small>
+                            </div>
+                            <button
+                                className="btn btn-outline-danger"
+                                onClick={handleCacheInvalidate}
+                            >
+                                <FaBroom size={18} className="me-1" />
+                                실행
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
             </div>
         </div>
     );
 };
+
 
 // -----------------------------------------------------------------
 // 시스템 관리 메인 컴포넌트

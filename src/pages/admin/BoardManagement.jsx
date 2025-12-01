@@ -3,6 +3,14 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 
+import {
+  FaTrash,
+  FaBullhorn,
+  FaFilter,
+  FaSearch,
+  FaExclamationTriangle,
+} from "react-icons/fa";
+
 const BoardManagement = () => {
   // ===============================
   // 📌 기본 더미 데이터
@@ -46,9 +54,7 @@ const BoardManagement = () => {
 
   const navigate = useNavigate();
 
-  // ===============================
-  // 📌 신고 사유 모달
-  // ===============================
+  // 신고 사유 모달
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [currentReason, setCurrentReason] = useState("");
 
@@ -57,9 +63,7 @@ const BoardManagement = () => {
     setShowReasonModal(true);
   };
 
-  // ===============================
-  // 📌 공지사항 생성
-  // ===============================
+  // 공지 등록
   const handleCreateNotice = () => {
     if (!noticeTitle || !noticeContent) {
       alert("제목과 내용을 입력하세요.");
@@ -71,7 +75,7 @@ const BoardManagement = () => {
         title: noticeTitle,
         content: noticeContent,
         type: "NOTICE",
-        leaderId: 1, 
+        leaderId: 1,
       })
       .then(() => {
         alert("공지사항이 등록되었습니다.");
@@ -79,29 +83,18 @@ const BoardManagement = () => {
         setNoticeContent("");
         return api.get("/study-posts");
       })
-      .then((res) => {
-        const sorted = sortPosts(res.data);
-        setPosts(sorted);
-      })
+      .then((res) => setPosts(sortPosts(res.data)))
       .catch((err) => console.error("공지 생성 실패:", err));
   };
 
-  // ===============================
-  // 📌 게시글 전체 조회
-  // ===============================
+  // 전체 조회
   useEffect(() => {
     api
       .get("/study-posts")
-      .then((res) => {
-        const sorted = sortPosts(res.data);
-        setPosts(sorted);
-      })
-      .catch((err) => {
-        console.error("게시글 조회 실패 → 더미 유지:", err);
-      });
+      .then((res) => setPosts(sortPosts(res.data)))
+      .catch((err) => console.error("조회 실패 → 더미 유지:", err));
   }, []);
 
-  // 정렬
   const sortPosts = (data) => {
     return [...data].sort((a, b) => {
       if (a.type === "NOTICE" && b.type !== "NOTICE") return -1;
@@ -110,9 +103,7 @@ const BoardManagement = () => {
     });
   };
 
-  // ===============================
-  // 📌 게시글 삭제
-  // ===============================
+  // 삭제
   const handleDelete = (postId) => {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
 
@@ -125,16 +116,9 @@ const BoardManagement = () => {
       .catch((err) => console.error("삭제 실패:", err));
   };
 
-  // ===============================
-  // 📌 게시글 수정 페이지 이동
-  // ===============================
-  const handleEditClick = (postId) => {
-    navigate(`/admin/board/edit/${postId}`);
-  };
+  const handleEditClick = (postId) => navigate(`/admin/board/edit/${postId}`);
 
-  // ===============================
-  // 📌 필터링
-  // ===============================
+  // 필터링
   let filteredPosts = posts;
 
   if (searchQuery.trim() !== "") {
@@ -153,139 +137,154 @@ const BoardManagement = () => {
 
   return (
     <div>
-      <h2>📜 게시글 관리</h2>
+      <h2 className="fw-bold mb-4">📜 게시글 관리</h2>
 
       {/* ============================ */}
-      {/* 📌 공지사항 등록 */}
+      {/* 📌 공지사항 등록 Card */}
       {/* ============================ */}
-      <div className="card p-3 mb-4">
-        <h4>📌 공지사항 등록</h4>
+      <div className="card shadow-sm p-4 mb-4">
+        <h4 className="mb-3">
+          <FaBullhorn className="text-primary me-2" />
+          공지사항 등록
+        </h4>
 
         <input
           type="text"
           className="form-control mb-2"
-          placeholder="공지사항 제목"
+          placeholder="공지 제목"
           value={noticeTitle}
           onChange={(e) => setNoticeTitle(e.target.value)}
         />
 
         <textarea
-          className="form-control mb-2"
+          className="form-control mb-3"
           rows="3"
-          placeholder="공지사항 내용"
+          placeholder="공지 내용"
           value={noticeContent}
           onChange={(e) => setNoticeContent(e.target.value)}
         ></textarea>
 
-        <button className="btn btn-primary" onClick={handleCreateNotice}>
-          공지사항 등록
+        <button className="btn btn-primary px-4" onClick={handleCreateNotice}>
+          등록하기
         </button>
       </div>
 
       {/* ============================ */}
-      {/* 🔍 검색 + 카테고리 필터 */}
+      {/* 🔍 검색 / 필터 Card */}
       {/* ============================ */}
-      <div className="d-flex mb-3 gap-3">
-        <input
-          type="text"
-          className="form-control w-50"
-          placeholder="제목 검색"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+      <div className="card shadow-sm p-3 mb-4">
+        <div className="d-flex align-items-center gap-3">
 
-        <select
-          className="form-select w-25"
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-        >
-          <option value="">카테고리 필터</option>
-          <option value="NOTICE">📌 공지사항</option>
-          <option value="STUDY">스터디 모집</option>
-          <option value="REVIEW">스터디 후기</option>
-        </select>
+          {/* 검색창 */}
+          <div className="input-group w-50">
+            <span className="input-group-text bg-light">
+              <FaSearch />
+            </span>
+            <input
+              type="text"
+              className="form-control"
+              placeholder="제목 검색"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
 
-        <div className="form-check ms-3 d-flex align-items-center">
-          <input
-            type="checkbox"
-            className="form-check-input"
-            id="reportedFilter"
-            checked={showOnlyReported}
-            onChange={() => setShowOnlyReported(!showOnlyReported)}
-          />
-          <label htmlFor="reportedFilter" className="form-check-label ms-2">
-            ⚠ 신고된 글만
-          </label>
+          {/* 카테고리 */}
+          <select
+            className="form-select w-25"
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+          >
+            <option value="">전체 유형</option>
+            <option value="NOTICE">📌 공지사항</option>
+            <option value="STUDY">스터디 모집</option>
+            <option value="REVIEW">후기</option>
+          </select>
+
+          {/* 신고 필터 */}
+          <div className="form-check d-flex align-items-center">
+            <input
+              type="checkbox"
+              className="form-check-input"
+              checked={showOnlyReported}
+              onChange={() => setShowOnlyReported(!showOnlyReported)}
+            />
+            <label className="form-check-label ms-2">
+              <FaExclamationTriangle className="text-danger me-1" />
+              신고된 글만
+            </label>
+          </div>
         </div>
       </div>
 
       {/* ============================ */}
-      {/* 📌 게시글 목록 */}
+      {/* 📌 게시글 목록 Table */}
       {/* ============================ */}
-      <table className="table table-bordered table-hover">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>제목</th>
-            <th>작성자 ID</th>
-            <th>유형</th>
-            <th>신고</th>
-            <th>작성일</th>
-            <th>액션</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {filteredPosts.map((p) => (
-            <tr key={p.postId}>
-              <td>{p.postId}</td>
-
-              <td
-                onClick={() => handleEditClick(p.postId)}
-                style={{
-                  cursor: "pointer",
-                  color: "#007BFF",
-                  textDecoration: "underline",
-                }}
-              >
-                {p.type === "NOTICE" ? "📌 " : ""}
-                {p.title}
-              </td>
-
-              <td>{p.leaderId}</td>
-              <td>{p.type}</td>
-
-              <td>
-                {p.reported ? (
-                  <span
-                    style={{
-                      cursor: "pointer",
-                      color: "#d9534f",
-                      fontWeight: "bold",
-                    }}
-                    onClick={() => handleShowReason(p.reportReason)}
-                  >
-                    ⚠ 신고됨
-                  </span>
-                ) : (
-                  "정상"
-                )}
-              </td>
-
-              <td>{new Date(p.createdAt).toLocaleDateString("ko-KR")}</td>
-
-              <td>
-                <button
-                  className="btn btn-danger btn-sm"
-                  onClick={() => handleDelete(p.postId)}
-                >
-                  삭제
-                </button>
-              </td>
+      <div className="card shadow-sm p-3">
+        <table className="table table-hover align-middle">
+          <thead className="table-light">
+            <tr>
+              <th>ID</th>
+              <th>제목</th>
+              <th>작성자</th>
+              <th>유형</th>
+              <th>신고</th>
+              <th>작성일</th>
+              <th>액션</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+
+          <tbody>
+            {filteredPosts.map((p) => (
+              <tr key={p.postId}>
+                <td>{p.postId}</td>
+
+                <td
+                  onClick={() => handleEditClick(p.postId)}
+                  style={{
+                    cursor: "pointer",
+                    color: "#0d6efd",
+                    fontWeight: "500",
+                  }}
+                >
+                  {p.type === "NOTICE" && "📌 "}
+                  {p.title}
+                </td>
+
+                <td>{p.leaderId}</td>
+                <td>{p.type}</td>
+
+                <td>
+                  {p.reported ? (
+                    <span
+                      className="text-danger fw-bold"
+                      style={{ cursor: "pointer" }}
+                      onClick={() => handleShowReason(p.reportReason)}
+                    >
+                      <FaExclamationTriangle className="me-1" />
+                      신고됨
+                    </span>
+                  ) : (
+                    "정상"
+                  )}
+                </td>
+
+                <td>{new Date(p.createdAt).toLocaleDateString("ko-KR")}</td>
+
+                <td>
+                  <button
+                    className="btn btn-danger btn-sm d-flex align-items-center"
+                    onClick={() => handleDelete(p.postId)}
+                  >
+                    <FaTrash className="me-1" />
+                    삭제
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* ============================ */}
       {/* 🚨 신고 사유 모달 */}
@@ -305,11 +304,14 @@ const BoardManagement = () => {
           }}
         >
           <div className="modal-dialog" style={{ marginTop: "15%" }}>
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">🚨 신고 사유</h5>
+            <div className="modal-content shadow-lg">
+              <div className="modal-header bg-danger text-white">
+                <h5 className="modal-title">
+                  <FaExclamationTriangle className="me-2" />
+                  신고 사유
+                </h5>
                 <button
-                  className="btn-close"
+                  className="btn-close btn-close-white"
                   onClick={() => setShowReasonModal(false)}
                 ></button>
               </div>

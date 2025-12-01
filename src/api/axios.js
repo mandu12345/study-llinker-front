@@ -9,15 +9,24 @@ const api = axios.create({
 
 // JWT 자동 적용 인터셉터
 api.interceptors.request.use((config) => {
-  const isLogin = config.url.includes("/auth/tokens");
-  const isRegister = config.url === "/users" && config.method === "post";
+  // 로그인 요청
+  const isLogin = config.url.includes("/auth/login");
 
-  // 로그인/회원가입 요청에는 Authorization 제거
+  // 회원가입 요청
+  const isRegister =
+    config.url.includes("/users") && config.method === "post";
+
+  // 로그인/회원가입 에는 Authorization 제거
   if (!isLogin && !isRegister) {
     const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log(">>> Axios Authorization:", config.headers.Authorization);
+    } else {
+      console.log(">>> Axios: 토큰 없음");
     }
+  } else {
+    console.log(">>> 로그인 또는 회원가입 요청 → 헤더 제거");
   }
 
   return config;
@@ -28,7 +37,6 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // JWT 만료 → 자동 로그아웃 처리
       localStorage.removeItem("token");
       alert("로그인이 만료되었습니다. 다시 로그인해주세요.");
       window.location.href = "/login";
