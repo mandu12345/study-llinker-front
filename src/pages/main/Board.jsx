@@ -202,7 +202,12 @@ const Board = () => {
       {posts.length > 0 ? (
         <ul className="list-group">
           {posts.map((p) => (
-            <li key={p.postId} className="list-group-item mb-2">
+            <li
+              key={p.postId}
+              className="list-group-item mb-2"
+              onClick={() => navigate(`/main/board/${p.postId}`)}
+              style={{ cursor: "pointer" }}
+            >
               <div className="d-flex justify-content-between">
                 <div>
                   <h5>{p.title}</h5>

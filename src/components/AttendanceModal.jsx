@@ -1,7 +1,7 @@
-// src/pages/main/AttendanceModal.jsx
+// src/pages/components/AttendanceModal.jsx
 
 import React, { useEffect, useState } from "react";
-import api from "../../api/axios";
+import api from "../api/axios";
 
 const AttendanceModal = ({ schedule, onClose }) => {
   const [members, setMembers] = useState([]);
