@@ -1,230 +1,365 @@
-import React, { useState, useEffect } from "react";
+// src/pages/admin/RecoManagement.jsx
+import React, { useEffect, useState } from "react";
+import api from "../../api/axios";
 import {
-    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
 } from "recharts";
-import RecoAlertModal from './RecoAlertModal'; // 알림 모달 import
+
+const TEST_MODE = true; // 🔥 API 연결 전 테스트 = true, 실제 서버 연동 = false
+
+// -------------------------
+// 🔥 더미 데이터 정의
+// -------------------------
+const dummyPopular = [
+  {
+    groupId: 1,
+    title: "Java 알고리즘 스터디",
+    distanceKm: 1.2,
+    popScore: 0.85,
+    distanceScore: 0.7,
+    finalScore: 0.78,
+    category: ["Java", "Algorithm"],
+  },
+  {
+    groupId: 2,
+    title: "Spring Boot 공부 모임",
+    distanceKm: 2.5,
+    popScore: 0.6,
+    distanceScore: 0.5,
+    finalScore: 0.55,
+    category: ["Spring", "Backend"],
+  },
+];
+
+const dummyTag = [
+  {
+    studyGroupId: 3,
+    name: "React 프론트엔드 스터디",
+    distanceKm: 1.8,
+    tagSimilarity: 0.75,
+    distanceScore: 0.8,
+    finalScore: 0.77,
+    category: ["React", "Frontend"],
+  },
+  {
+    studyGroupId: 4,
+    name: "Node.js API 개발",
+    distanceKm: 3.0,
+    tagSimilarity: 0.6,
+    distanceScore: 0.45,
+    finalScore: 0.53,
+    category: ["Node.js", "Backend"],
+  },
+];
 
 const RecoManagement = () => {
-    // F-S-RM-001: 현재 적용 알고리즘 상태 (초기값을 T-L Hybrid로 변경)
-    const [algorithm, setAlgorithm] = useState("TagLocation_Hybrid");
-    // T-L Hybrid 모델을 위한 가중치 (기본값 설정)
-    const [tagWeight, setTagWeight] = useState(0.6);
-    const [locWeight, setLocWeight] = useState(0.4);
+  const [lat, setLat] = useState(37.5665);
+  const [lng, setLng] = useState(126.9780);
+  const [radius, setRadius] = useState(5);
 
-    // 모달 상태 관리
-    const [modal, setModal] = useState({ show: false, title: '', message: '', type: '' });
+  // 가중치 설정
+  const [popWeight, setPopWeight] = useState(0.7);
+  const [distanceWeight, setDistanceWeight] = useState(0.3);
+  const [alpha, setAlpha] = useState(0.5);
+  const [beta, setBeta] = useState(0.5);
 
-    // 모니터링 데이터 (최근 10회 기록)
-    const [chartData, setChartData] = useState([
-        { time: "00:00", successRate: 75, diversity: 4.2 },
-    ]);
+  // 추천 결과
+  const [popularData, setPopularData] = useState([]);
+  const [tagData, setTagData] = useState([]);
 
-    // 모달 닫기 핸들러
-    const handleCloseModal = () => {
-        setModal({ show: false, title: '', message: '', type: '' });
+  // 모니터링 라인차트
+  const [history, setHistory] = useState([]);
+
+  // -------------------------
+  // 1) 인기 기반 API (또는 더미)
+  // -------------------------
+  const loadPopular = async () => {
+    if (TEST_MODE) {
+      setPopularData(dummyPopular);
+      return dummyPopular;
+    }
+
+    const res = await api.get("/groups/popular", {
+      params: {
+        lat,
+        lng,
+        radiusKm: radius,
+        popWeight,
+        distanceWeight,
+        limit: 10,
+      },
+    });
+
+    setPopularData(res.data.groups || []);
+    return res.data.groups || [];
+  };
+
+  // -------------------------
+  // 2) 태그 기반 API (또는 더미)
+  // -------------------------
+  const loadTag = async () => {
+    if (TEST_MODE) {
+      setTagData(dummyTag);
+      return dummyTag;
+    }
+
+    const res = await api.get("/recommend/tag", {
+      params: {
+        userId: 1,
+        lat,
+        lng,
+        radiusKm: radius,
+        limit: 10,
+        alpha,
+        beta,
+      },
+    });
+
+    setTagData(res.data || []);
+    return res.data || [];
+  };
+
+  // -------------------------
+  // 3) 두 알고리즘 비교 + 기록 저장
+  // -------------------------
+  const refreshAll = async () => {
+    const pop = await loadPopular();
+    const tag = await loadTag();
+
+    const newItem = {
+      time: new Date().toLocaleTimeString(),
+      popScore: avg(pop.map((g) => g.finalScore)),
+      tagScore: avg(tag.map((g) => g.finalScore)),
     };
 
-    // F-S-RM-001: 알고리즘 및 가중치 저장
-    const handleAlgorithmSave = () => {
-        // T-L Hybrid 모델일 경우에만 가중치 합산 체크
-        if (algorithm === "TagLocation_Hybrid" && (tagWeight + locWeight).toFixed(1) !== "1.0") {
-            setModal({
-                show: true,
-                title: "설정 오류",
-                message: "태그 가중치와 위치 가중치의 합은 1.0(100%)이 되어야 합니다.",
-                type: "error"
-            });
-            return;
-        }
+    setHistory((prev) => [...prev.slice(-9), newItem]);
+  };
 
-        // 실제로는 백엔드 API 호출하여 알고리즘 모델과 가중치를 저장해야 함
-        let message = `추천 알고리즘 모델을 [${algorithm}]로 변경하고 저장했습니다.`;
-        if (algorithm === "TagLocation_Hybrid") {
-            message += `\n(가중치: 태그 ${tagWeight}, 위치 ${locWeight} 적용)`;
-        }
+  useEffect(() => {
+    refreshAll();
+  }, []);
 
-        setModal({
-            show: true,
-            title: "설정 완료",
-            message: message,
-            type: "success"
-        });
-    };
+  const avg = (arr) =>
+    arr.length ? +(arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) : 0;
 
-    // F-S-RM-002: 수동 새로고침
-    const handleMonitorRefresh = () => {
-        updateChartData();
-        setModal({
-            show: true,
-            title: "모니터링 갱신",
-            message: "추천 결과 모니터링 데이터를 새로 고침했습니다.",
-            type: "success"
-        });
-    };
+  // -------------------------
+  // 바 차트 데이터
+  // -------------------------
+  const barData = [
+    {
+      name: "그룹 수",
+      popular: popularData.length,
+      tag: tagData.length,
+    },
+    {
+      name: "평균 점수",
+      popular: avg(popularData.map((g) => g.finalScore)),
+      tag: avg(tagData.map((g) => g.finalScore)),
+    },
+    {
+      name: "평균 거리",
+      popular: avg(popularData.map((g) => g.distanceKm)),
+      tag: avg(tagData.map((g) => g.distanceKm)),
+    },
+    {
+      name: "다양성(태그 종류)",
+      popular: diversity(popularData),
+      tag: diversity(tagData),
+    },
+  ];
 
-    // ✅ 자동 갱신 (10초마다 데이터 추가)
-    useEffect(() => {
-        const interval = setInterval(() => {
-            updateChartData();
-        }, 10000); 
-        return () => clearInterval(interval);
-    }, [chartData]);
+  function diversity(arr) {
+    const tags = new Set();
+    arr.forEach((g) => g.category?.forEach((t) => tags.add(t)));
+    return tags.size;
+  }
 
-    // ✅ 차트 데이터 갱신 함수
-    const updateChartData = () => {
-        const now = new Date();
-        const newTime = now.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  // -------------------------
+  // 레이더 차트 데이터
+  // -------------------------
+  const radarData = [
+    {
+      metric: "거리점수",
+      popular: avg(popularData.map((g) => g.distanceScore || 0)),
+      tag: avg(tagData.map((g) => g.distanceScore || 0)),
+    },
+    {
+      metric: "인기점수",
+      popular: avg(popularData.map((g) => g.popScore || 0)),
+      tag: 0,
+    },
+    {
+      metric: "태그유사도",
+      popular: 0,
+      tag: avg(tagData.map((g) => g.tagSimilarity || 0)),
+    },
+    {
+      metric: "최종점수",
+      popular: avg(popularData.map((g) => g.finalScore)),
+      tag: avg(tagData.map((g) => g.finalScore)),
+    },
+  ];
 
-        const last = chartData[chartData.length - 1] || { successRate: 75, diversity: 4.2 };
-        const newEntry = {
-            time: newTime,
-            successRate: Math.min(100, (parseFloat(last.successRate) + Math.random() * 3 - 1).toFixed(1)), 
-            diversity: (parseFloat(last.diversity) + (Math.random() * 0.3 - 0.1)).toFixed(2), 
-        };
+  return (
+    <div>
+      <h2 className="mb-3">💡 추천 알고리즘 관리 / 모니터링</h2>
 
-        setChartData((prev) => [...prev.slice(-9), newEntry]);
-    };
+      {/* =============================== */}
+{/* 🎨 가중치 설정 패널 */}
+{/* =============================== */}
+<div className="card p-4 mb-4 shadow-sm">
 
-    // 최신 데이터 (텍스트 표시용)
-    const latest = chartData[chartData.length - 1];
+  <h5 className="fw-bold mb-3">⚙️ 추천 알고리즘 가중치 설정</h5>
 
-    // 가중치 핸들러
-    const handleTagWeightChange = (e) => {
-        const newTagW = parseFloat(e.target.value) || 0;
-        setTagWeight(newTagW);
-        setLocWeight(parseFloat((1.0 - newTagW).toFixed(1)));
-    };
+  <div className="row g-4">
 
-    return (
-        <div className="reco-management">
-            <h2>💡 추천 관리</h2>
+    {/* ---------------------------- */}
+    {/* 🟦 인기 기반 설정 카드 */}
+    {/* ---------------------------- */}
+    <div className="col-md-6">
+      <div className="p-3 border rounded shadow-sm bg-light">
+        <h6 className="fw-bold mb-3 text-primary">🔥 인기 기반 추천 설정</h6>
 
-            {/* F-S-RM-001: 추천 알고리즘 설정 */}
-            <div className="card mb-4 shadow-sm">
-                <div className="card-header fw-bold">추천 알고리즘 설정</div>
-                <div className="card-body">
-                    
-                    <p>현재 적용 모델: <strong>{algorithm}</strong></p>
-                    
-                    {/* 알고리즘 선택 드롭다운: 옵션 변경 완료 */}
-                    <div className="mb-4">
-                        <label className="form-label">모니터링 대상 알고리즘 선택</label>
-                        <select
-                            className="form-select w-50"
-                            value={algorithm}
-                            onChange={(e) => setAlgorithm(e.target.value)}
-                        >
-                            <option value="TagLocation_Hybrid">위치 + 태그유사도</option>
-                            <option value="CollaborativeFiltering">협업 필터링 (CF)</option>
-                            <option value="Popularity">인기 기반</option>
-                        </select>
-                    </div>
-
-                    {/* ✅ T-L Hybrid 가중치 설정 UI 추가 (알고리즘 선택 시에만 표시) */}
-                    {algorithm === "TagLocation_Hybrid" && (
-                        <div className="mb-4 p-3 border rounded">
-                            <p className="fw-bold mb-2">하이브리드 가중치 조정 (총합 1.0)</p>
-                            <div className="d-flex align-items-center mb-2">
-                                <label className="form-label mb-0 w-50 me-2">태그 유사도 가중치 (β)</label>
-                                <input 
-                                    type="number" 
-                                    step="0.1" 
-                                    min="0.0" 
-                                    max="1.0" 
-                                    className="form-control w-25 me-2" 
-                                    value={tagWeight} 
-                                    onChange={handleTagWeightChange} // 태그 가중치 변경 시 위치 가중치 자동 계산
-                                />
-                                <span className="fw-bold text-primary">{tagWeight * 100}%</span>
-                            </div>
-                            <div className="d-flex align-items-center">
-                                <label className="form-label mb-0 w-50 me-2">위치 근접도 가중치 (α)</label>
-                                {/* 위치 가중치는 태그 가중치에 따라 자동 계산됨 */}
-                                <input 
-                                    type="number" 
-                                    disabled 
-                                    className="form-control w-25 me-2 bg-light" 
-                                    value={locWeight} 
-                                />
-                                <span className="fw-bold text-primary">{locWeight * 100}%</span>
-                            </div>
-                            <small className="text-muted mt-2 d-block">추천점수 = (1 / (1 + 거리(km))) * α + (태그유사도 점수) * β</small>
-                        </div>
-                    )}
-                    
-                    <button className="btn btn-primary" onClick={handleAlgorithmSave}>
-                        알고리즘 설정 저장
-                    </button>
-                </div>
-            </div>
-
-            {/* F-S-RM-002: 추천 결과 모니터링 + 실시간 시각화 */}
-            <div className="card shadow-sm">
-                <div className="card-header d-flex justify-content-between align-items-center fw-bold">
-                    추천 결과 모니터링 (10초마다 자동 갱신)
-                    <button className="btn btn-sm btn-outline-secondary" onClick={handleMonitorRefresh}>
-                        새로 고침
-                    </button>
-                </div>
-                <div className="card-body">
-                    <div className="row">
-                        <div className="col-md-4">
-                            <p>현재 모델: <strong>{algorithm}</strong></p>
-                            <p>매칭 성공률: <strong>{latest.successRate}%</strong></p>
-                            <p>추천 다양성 지표: <strong>{latest.diversity}</strong></p>
-                            <p>최근 측정 시각: <strong>{latest.time}</strong></p>
-                        </div>
-
-                        {/* ✅ 라인차트 (시간별 변화 추적) */}
-                        <div className="col-md-8">
-                            <div style={{ width: "100%", height: 300 }}>
-                                <ResponsiveContainer>
-                                    <LineChart
-                                        data={chartData}
-                                        margin={{ top: 20, right: 30, left: 10, bottom: 10 }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="time" />
-                                        <YAxis yAxisId="left" orientation="left" domain={[60, 100]} />
-                                        <YAxis yAxisId="right" orientation="right" domain={[3, 5]} />
-                                        <Tooltip />
-                                        <Legend />
-                                        <Line
-                                            yAxisId="left"
-                                            type="monotone"
-                                            dataKey="successRate"
-                                            stroke="#36A2EB"
-                                            strokeWidth={2}
-                                            dot={{ r: 3 }}
-                                            name="매칭 성공률(%)"
-                                        />
-                                        <Line
-                                            yAxisId="right"
-                                            type="monotone"
-                                            dataKey="diversity"
-                                            stroke="#FFCE56"
-                                            strokeWidth={2}
-                                            dot={{ r: 3 }}
-                                            name="추천 다양성 지표"
-                                        />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            {/* 알림 모달 렌더링 */}
-            <RecoAlertModal
-                show={modal.show}
-                title={modal.title}
-                message={modal.message}
-                type={modal.type}
-                onClose={handleCloseModal}
-            />
+        <div className="mb-3">
+          <label className="form-label">📈 인기 가중치(popWeight)</label>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            max="1"
+            value={popWeight}
+            onChange={(e) => setPopWeight(parseFloat(e.target.value))}
+            className="form-control"
+          />
         </div>
-    );
+
+        <div className="mb-2">
+          <label className="form-label">📍 거리 가중치(distanceWeight)</label>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            max="1"
+            value={distanceWeight}
+            onChange={(e) => setDistanceWeight(parseFloat(e.target.value))}
+            className="form-control"
+          />
+        </div>
+      </div>
+    </div>
+
+    {/* ---------------------------- */}
+    {/* 🟧 태그 기반 설정 카드 */}
+    {/* ---------------------------- */}
+    <div className="col-md-6">
+      <div className="p-3 border rounded shadow-sm bg-light">
+        <h6 className="fw-bold mb-3 text-danger">🧩 태그 기반 추천 설정</h6>
+
+        <div className="mb-3">
+          <label className="form-label">📍 거리 점수 가중치(alpha)</label>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            max="1"
+            value={alpha}
+            onChange={(e) => setAlpha(parseFloat(e.target.value))}
+            className="form-control"
+          />
+        </div>
+
+        <div className="mb-2">
+          <label className="form-label">🏷️ 태그 유사도 가중치(beta)</label>
+          <input
+            type="number"
+            step="0.1"
+            min="0"
+            max="1"
+            value={beta}
+            onChange={(e) => setBeta(parseFloat(e.target.value))}
+            className="form-control"
+          />
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <button className="btn btn-primary mt-4 px-4" onClick={refreshAll}>
+    🔄 새로고침 / 재계산
+  </button>
+
+</div>
+
+      {/* 라인 차트 */}
+      <div className="card p-3 mb-4 shadow-sm">
+        <h5>📈 점수 변화 모니터링</h5>
+        <div style={{ width: "100%", height: 300 }}>
+          <ResponsiveContainer>
+            <LineChart data={history}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="time"/>
+              <YAxis/>
+              <Tooltip/>
+              <Legend/>
+              <Line type="monotone" dataKey="popScore" stroke="#007BFF" name="인기 기반"/>
+              <Line type="monotone" dataKey="tagScore" stroke="#FF5722" name="태그 기반"/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* 바 차트 */}
+      <div className="card p-3 mb-4 shadow-sm">
+        <h5>📊 핵심 지표 비교</h5>
+        <div style={{ width: "100%", height: 300 }}>
+          <ResponsiveContainer>
+            <BarChart data={barData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name"/>
+              <YAxis/>
+              <Tooltip/>
+              <Legend/>
+              <Bar dataKey="popular" fill="#007BFF" name="인기 기반"/>
+              <Bar dataKey="tag" fill="#FF5722" name="태그 기반"/>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* 레이더 차트 */}
+      <div className="card p-3">
+        <h5>🧭 알고리즘 특성 레이더 비교</h5>
+        <div style={{ width: "100%", height: 300 }}>
+          <ResponsiveContainer>
+            <RadarChart data={radarData}>
+              <PolarGrid/>
+              <PolarAngleAxis dataKey="metric"/>
+              <PolarRadiusAxis angle={90} domain={[0, 1]}/>
+              <Radar name="Popular" dataKey="popular" stroke="#007BFF" fill="#007BFF" fillOpacity={0.6}/>
+              <Radar name="Tag" dataKey="tag" stroke="#FF5722" fill="#FF5722" fillOpacity={0.6}/>
+              <Legend/>
+            </RadarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+    </div>
+  );
 };
 
 export default RecoManagement;
