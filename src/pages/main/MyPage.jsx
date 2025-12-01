@@ -134,7 +134,7 @@ const MyPage = () => {
           <p><strong>이름:</strong> {userInfo?.name}</p>
           <p><strong>아이디:</strong> {userInfo?.username}</p>
           <p><strong>이메일:</strong> {userInfo?.email}</p>
-          <p><strong>관심사:</strong> {userInfo?.interest_tags?.join(", ")}</p>
+          <p><strong>관심사:</strong> {userInfo?.interestTags?.join(", ")}</p>
 
           <div className="d-flex justify-content-end mt-3">
             <button
