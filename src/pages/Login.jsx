@@ -37,7 +37,7 @@ const Login = () => {
     // 1) 슈퍼유저, 관리자 더미 로그인 (프론트 테스트용)
     if (username === "superuser" && password === "1234") {
       const dummyToken = createDummyToken("ADMIN");
-      login(dummyToken, "ADMIN");
+      login(dummyToken);      
       setModal({
         show: true,
         title: "슈퍼유저 로그인 성공",
@@ -50,7 +50,7 @@ const Login = () => {
 
     if (username === "admin" && password === "1234") {
       const dummyToken = createDummyToken("ADMIN");
-      login(dummyToken, "ADMIN");
+      login(dummyToken);      
       setModal({
         show: true,
         title: "관리자 로그인 성공",
@@ -76,9 +76,12 @@ const Login = () => {
         });
         return;
       }
+     
+      // JWT 내부 payload에서 role 추출
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      const role = payload.role;
 
-      // AuthContext의 login()은 localStorage.setItem("token", token)을 처리해줌
-      login(token, "USER");
+      login(token);  // 여기서 백엔드에서 온 role을 그대로 저장
 
       setModal({
         show: true,
