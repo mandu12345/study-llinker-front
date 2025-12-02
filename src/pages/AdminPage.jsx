@@ -1,0 +1,87 @@
+// src/pages/AdminPage.jsx
+
+import React from "react";
+import { Link, Routes, Route } from "react-router-dom";
+import OpsChart from "./admin/OpsChart";        // 📊 대시보드
+import UserList from "./admin/UserList";        // 👥 사용자 관리
+import GroupList from "./admin/GroupList";      // 📚 스터디 그룹 관리
+import BoardManagement from "./admin/BoardManagement"; // 📜 게시판 관리
+import RecoManagement from "./admin/RecoManagement";   // 💡 추천 관리
+import SystemManagement from "./admin/SystemManagement"; // ⚙️ 시스템/문의 관리
+
+const AdminPage = () => {
+  const adminName = "관리자";
+
+  return (
+    <div className="admin-wrapper">
+      {/* Navbar */}
+      <nav className="navbar navbar-dark bg-dark">
+        <a className="navbar-brand" href="/admin">
+          Admin Panel
+        </a>
+        <span className="text-light">{adminName}님</span>
+      </nav>
+
+      {/* Sidebar + Main */}
+      <div className="container-fluid">
+        <div className="row">
+          {/* Sidebar - 경로 수정 완료 */}
+          <div className="col-2 bg-light vh-100 p-3 border-end">
+            <ul className="list-group list-group-flush">
+              
+              {/* 1. 대시보드 */}
+              <li className="list-group-item">
+                <Link to="/admin/dashboard" className="nav-link">📊 대시보드</Link>
+              </li>
+              
+              {/* 2. 사용자 관리 */}
+              <li className="list-group-item">
+                <Link to="/admin/users" className="nav-link">👥 사용자 관리</Link>
+              </li>
+              
+              {/* 3. 스터디 그룹 관리 */}
+              <li className="list-group-item">
+                <Link to="/admin/groups" className="nav-link">📚 스터디 그룹 관리</Link>
+              </li>
+              
+              {/* 4. 게시판 관리 */}
+              <li className="list-group-item">
+                <Link to="/admin/board" className="nav-link">📜 게시판 관리</Link>
+              </li>
+              
+              {/* 5. 추천 관리 */}
+              <li className="list-group-item">
+                <Link to="/admin/recommendation" className="nav-link">💡 추천 관리</Link>
+              </li>
+
+              {/* 6. 시스템/문의 관리 */}
+              <li className="list-group-item">
+                <Link to="/admin/system" className="nav-link">⚙️ 시스템/문의 관리</Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Main content - 라우트 확장 */}
+          <div className="col-10 p-4">
+            <Routes>
+              {/* 기존 라우트 (path는 그대로 유지) */}
+              <Route path="dashboard" element={<OpsChart />} />
+              <Route path="users" element={<UserList />} />
+              <Route path="groups" element={<GroupList />} />
+              
+              {/* 추가된 라우트 */}
+              <Route path="board/*" element={<BoardManagement />} />
+              <Route path="recommendation" element={<RecoManagement />} />
+              <Route path="system/*" element={<SystemManagement />} />
+              
+              {/* 기본 라우트: /admin 접근 시 대시보드 표시 */}
+              <Route path="/" element={<OpsChart />} />
+            </Routes>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AdminPage;
