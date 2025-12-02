@@ -67,11 +67,21 @@ const MainPage = () => {
   useEffect(() => {
     const loadUser = async () => {
       try {
+        console.log("[MainPage] /users/profile 요청 시작");
         const res = await api.get("/users/profile");
-        setUserId(res.data.user_id);
+        console.log("[MainPage] /users/profile 응답:", res.data);
+
+        setUserId(res.data.userId);
         setUsername(res.data.username);
+
+        // ✅ 반드시 추가 (Dashboard에서 localStorage 쓰는 경우를 위해)
+        localStorage.setItem("userId", res.data.userId);
+        console.log(
+          "[MainPage] userId 상태/로컬스토리지 설정 완료:",
+          res.data.userId
+        );
       } catch (err) {
-        console.error("유저 정보 실패:", err);
+        console.error("[MainPage] 유저 정보 실패:", err);
       }
     };
     loadUser();
@@ -81,16 +91,21 @@ const MainPage = () => {
   // 2) 리더 여부 확인
   // ------------------------------
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      console.log("[MainPage] 리더 여부 확인 생략: userId 없음");
+      return;
+    }
 
     const checkLeader = async () => {
       try {
+        console.log("[MainPage] 리더 여부 확인 요청, userId =", userId);
         const res = await api.get(
           `/study-groups?leaderId=${userId}&page=0&size=50`
         );
+        console.log("[MainPage] 리더 여부 확인 응답:", res.data);
         setIsLeader(res.data.groups?.length > 0);
       } catch (err) {
-        console.error("리더 확인 실패:", err);
+        console.error("[MainPage] 리더 확인 실패:", err);
       }
     };
     checkLeader();
@@ -100,12 +115,17 @@ const MainPage = () => {
   // 3) 내 일정 조회
   // ------------------------------
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      console.log("[MainPage] 일정 조회 생략: userId 없음");
+      return;
+    }
 
     const loadSchedules = async () => {
       try {
+        console.log("[MainPage] /study-schedules/me 요청 시작");
         const res = await api.get("/study-schedules/me");
         const raw = res.data || [];
+        console.log("[MainPage] /study-schedules/me 응답:", raw);
 
         // group_id 모으기
         const groupIds = [
@@ -115,16 +135,21 @@ const MainPage = () => {
               .map((s) => s.group_id)
           ),
         ];
+        console.log("[MainPage] groupIds:", groupIds);
 
         // 그룹 단건 조회
         const groupMap = {};
         await Promise.all(
           groupIds.map(async (gid) => {
             try {
+              console.log("[MainPage] /study-groups/" + gid + " 요청");
               const gRes = await api.get(`/study-groups/${gid}`);
               groupMap[gid] = gRes.data;
             } catch (err) {
-              console.error("그룹 단건 조회 실패:", err);
+              console.error(
+                "[MainPage] 그룹 단건 조회 실패 (gid=" + gid + "):",
+                err
+              );
             }
           })
         );
@@ -146,9 +171,10 @@ const MainPage = () => {
           };
         });
 
+        console.log("[MainPage] 가공된 일정 데이터:", formatted);
         setSchedules(formatted);
       } catch (err) {
-        console.error("일정 조회 실패:", err);
+        console.error("[MainPage] 일정 조회 실패:", err);
       }
     };
 
@@ -162,6 +188,13 @@ const MainPage = () => {
     if (location.pathname !== "/main") return;
     if (!window.kakao || !window.kakao.maps) return;
 
+    console.log(
+      "[MainPage] 카카오맵 렌더링, userLocation =",
+      userLocation,
+      ", schedules.length =",
+      schedules.length
+    );
+
     window.kakao.maps.load(() => {
       const container = document.getElementById("map");
       if (!container) return;
@@ -172,7 +205,7 @@ const MainPage = () => {
       const map = new window.kakao.maps.Map(container, {
         center: new window.kakao.maps.LatLng(
           userLocation?.lat || 37.5665,
-          userLocation?.lng || 126.9780
+          userLocation?.lng || 126.978
         ),
         level: 6,
       });
@@ -219,12 +252,14 @@ const MainPage = () => {
   // 현재 사용자 위치 가져오기
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
-      (pos) =>
+      (pos) => {
+        console.log("[MainPage] 위치 성공:", pos.coords);
         setUserLocation({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
-        }),
-      (err) => console.error("위치 실패:", err)
+        });
+      },
+      (err) => console.error("[MainPage] 위치 실패:", err)
     );
   }, []);
 
@@ -250,21 +285,28 @@ const MainPage = () => {
   // 일정 삭제
   const deleteSchedule = async (scheduleId) => {
     try {
+      console.log("[MainPage] 일정 삭제 요청, scheduleId =", scheduleId);
       await api.delete(`/study-schedules/${scheduleId}`);
       setSchedules((prev) => prev.filter((s) => s.id !== scheduleId));
       alert("일정 삭제됨");
     } catch (err) {
-      console.error("삭제 실패:", err);
+      console.error("[MainPage] 삭제 실패:", err);
     }
   };
 
   // 알림 조회
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      console.log("[MainPage] 알림 조회 생략: userId 없음");
+      return;
+    }
 
     const loadNotifications = async () => {
       try {
+        console.log("[MainPage] /notifications 요청 시작");
         const res = await api.get("/notifications");
+        console.log("[MainPage] /notifications 응답:", res.data);
+
         const mapped = res.data.map((n) => ({
           id: n.notification_id,
           message: n.message,
@@ -273,7 +315,7 @@ const MainPage = () => {
         }));
         setNotifications(mapped);
       } catch (err) {
-        console.error("알림 실패:", err);
+        console.error("[MainPage] 알림 실패:", err);
       }
     };
     loadNotifications();
@@ -281,12 +323,13 @@ const MainPage = () => {
 
   const markAsRead = async (id) => {
     try {
+      console.log("[MainPage] 알림 읽음 처리 요청, id =", id);
       await api.patch(`/notifications/${id}/read`);
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
     } catch (err) {
-      console.error("읽음 실패:", err);
+      console.error("[MainPage] 읽음 실패:", err);
     }
   };
 
@@ -439,7 +482,8 @@ const MainPage = () => {
 
                     {/* 사용자 대시보드 */}
                     <div className="mt-4">
-                      <UserBasicDashboard />
+                      {/* ✅ userId를 Dashboard에 넘겨줌 */}
+                      <UserBasicDashboard currentUserId={userId} />
                     </div>
                   </div>
                 }
@@ -495,9 +539,7 @@ const MainPage = () => {
               </div>
 
               <div className="modal-body">
-                {notifications.length === 0 && (
-                  <p>알림이 없습니다.</p>
-                )}
+                {notifications.length === 0 && <p>알림이 없습니다.</p>}
 
                 <ul className="list-group">
                   {notifications.map((n) => (

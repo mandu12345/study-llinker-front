@@ -1,40 +1,55 @@
+// src/pages/main/UserBasicDashboard.jsx
+
 import React, { useEffect, useState, useRef } from "react";
 import Chart from "chart.js/auto";
 import "react-calendar/dist/Calendar.css";
 import api from "../../api/axios";
 
-const UserBasicDashboard = () => {
+// ✅ currentUserId를 Prop으로 받습니다.
+const UserBasicDashboard = ({ currentUserId }) => {
   const [schedules, setSchedules] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
   const pieChartRef = useRef(null);
   const barChartRef = useRef(null);
 
+  // ✅ Prop으로 받은 currentUserId를 사용
+  const userId = currentUserId;
 
-  const userId = Number(localStorage.getItem("userId"));
-
-  // 1) 필요한 API만 호출
   const loadData = async () => {
     try {
-      // 내 일정 조회
+      console.log("[Dashboard] loadData 호출, userId =", userId);
+
+      if (!userId) {
+        console.error("[Dashboard] userId 없음! Dashboard 데이터 로드를 중단합니다.");
+        setLoading(false);
+        return;
+      }
+
+      console.log("[Dashboard] /study-schedules/me 요청 시작");
       const scheduleRes = await api.get("/study-schedules/me");
+      console.log("[Dashboard] /study-schedules/me 응답:", scheduleRes.data);
       setSchedules(scheduleRes.data);
 
-      // 내 출석 조회
+      console.log("[Dashboard] /attendance/user/" + userId + " 요청 시작");
       const attendanceRes = await api.get(`/attendance/user/${userId}`);
+      console.log("[Dashboard] /attendance/user 응답:", attendanceRes.data);
       setAttendance(attendanceRes.data);
-
     } catch (err) {
-      console.error(err);
+      console.error("[Dashboard] 대시보드 데이터 로드 실패:", err);
       alert("대시보드 데이터를 불러오는 데 실패했습니다.");
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ currentUserId가 유효할 때만 loadData를 호출합니다.
   useEffect(() => {
-    loadData();
-  }, []);
+    console.log("[Dashboard] useEffect 실행, currentUserId =", currentUserId);
+    if (currentUserId) {
+      loadData();
+    }
+  }, [currentUserId]);
 
   // 2) 출석 현황 계산
   const attendanceStats = {
@@ -78,11 +93,15 @@ const UserBasicDashboard = () => {
 
   // 6) 차트 렌더링
   useEffect(() => {
-    if (loading) return;
+    if (loading) {
+      console.log("[Dashboard] 로딩 중 → 차트 렌더링 스킵");
+      return;
+    }
+
+    console.log("[Dashboard] 차트 렌더링 시작");
 
     const ctx1 = document.getElementById("attendanceRatioChart");
     if (ctx1) {
-      // 기존 차트 제거
       if (pieChartRef.current) {
         pieChartRef.current.destroy();
       }
@@ -107,7 +126,6 @@ const UserBasicDashboard = () => {
 
     const ctx2 = document.getElementById("participationCountChart");
     if (ctx2) {
-      // 기존 차트 제거
       if (barChartRef.current) {
         barChartRef.current.destroy();
       }
@@ -202,7 +220,9 @@ const UserBasicDashboard = () => {
                         </li>
                       ))
                     ) : (
-                      <p className="text-muted small">이번 주 예정된 일정이 없어요.</p>
+                      <p className="text-muted small">
+                        이번 주 예정된 일정이 없어요.
+                      </p>
                     )}
                   </ul>
                 </div>

@@ -26,10 +26,8 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 🔥 더미 토큰 로그인 전부 제거하고, 항상 실제 API 호출
     try {
       const res = await api.post("/auth/tokens", { username, password });
-
       const token = res.data.accessToken;
 
       if (!token) {
@@ -46,7 +44,7 @@ const Login = () => {
       const payload = JSON.parse(atob(token.split(".")[1]));
       const role = payload.role;
 
-      // 토큰 저장 (AuthContext 안에서 localStorage 등에 저장한다고 가정)
+      // 토큰 저장 및 AuthContext 상태 업데이트
       login(token);
 
       // role 에 따라 이동 경로/메시지 분기
