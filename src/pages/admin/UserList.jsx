@@ -1,7 +1,7 @@
 // src/pages/admin/UserList.jsx
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import api from "../../api/axios";
+import { AuthContext } from "../../auth/AuthContext";
 
 import { FaEdit, FaTrash, FaToggleOn, FaToggleOff } from "react-icons/fa";
 import { MdPeopleAlt } from "react-icons/md";
@@ -10,31 +10,11 @@ import UserEditModal from "./UserEditModal";
 import UserDeleteModal from "./UserDeleteModal";
 import StatusChangeModal from "./StatusChangeModal";
 
+
 // ------------------------------------------------------
-// 🔵 사용자 목록 테이블 (더미 + API 데이터)
+// 1) 사용자 목록 테이블
 // ------------------------------------------------------
 const UserTable = ({ users, onEdit, onDelete, onStatusChange }) => {
-    const renderStatusButtons = (user) => {
-        if (user.status === "Active") {
-            return (
-                <button
-                    className="btn btn-outline-secondary btn-sm me-2"
-                    onClick={() => onStatusChange(user, "Inactive")}
-                >
-                    <FaToggleOff className="me-1" /> 비활성화
-                </button>
-            );
-        }
-        return (
-            <button
-                className="btn btn-outline-success btn-sm me-2"
-                onClick={() => onStatusChange(user, "Active")}
-            >
-                <FaToggleOn className="me-1" /> 활성화
-            </button>
-        );
-    };
-
     return (
         <table className="table table-hover align-middle">
             <thead className="table-light">
@@ -48,6 +28,7 @@ const UserTable = ({ users, onEdit, onDelete, onStatusChange }) => {
                     <th>관리</th>
                 </tr>
             </thead>
+
             <tbody>
                 {users.map((u) => (
                     <tr key={u.userId}>
@@ -56,9 +37,8 @@ const UserTable = ({ users, onEdit, onDelete, onStatusChange }) => {
                         <td>{u.name}</td>
                         <td>{u.email}</td>
                         <td>{u.role}</td>
-
                         <td>
-                            {u.status === "Active" ? (
+                            {u.status === "ACTIVE" ? (
                                 <span className="badge bg-success">활성</span>
                             ) : (
                                 <span className="badge bg-secondary">비활성</span>
@@ -73,7 +53,21 @@ const UserTable = ({ users, onEdit, onDelete, onStatusChange }) => {
                                 <FaEdit className="me-1" /> 수정
                             </button>
 
-                            {renderStatusButtons(u)}
+                            {u.status === "ACTIVE" ? (
+                                <button
+                                    className="btn btn-outline-secondary btn-sm me-2"
+                                    onClick={() => onStatusChange(u, "INACTIVE")}
+                                >
+                                    <FaToggleOff className="me-1" /> 비활성화
+                                </button>
+                            ) : (
+                                <button
+                                    className="btn btn-outline-success btn-sm me-2"
+                                    onClick={() => onStatusChange(u, "ACTIVE")}
+                                >
+                                    <FaToggleOn className="me-1" /> 활성화
+                                </button>
+                            )}
 
                             <button
                                 className="btn btn-outline-danger btn-sm"
@@ -89,201 +83,122 @@ const UserTable = ({ users, onEdit, onDelete, onStatusChange }) => {
     );
 };
 
-// ------------------------------------------------------
-// 🔵 전체 출석 조회 테이블 (더미 유지)
-// ------------------------------------------------------
-const AllAttendanceTable = () => {
-    const [attendance, setAttendance] = useState([
-        {
-            attendanceId: 1,
-            userId: 1,
-            scheduleId: 101,
-            status: "PRESENT",
-            checkedAt: "2025-01-10 10:00:00"
-        },
-        {
-            attendanceId: 2,
-            userId: 2,
-            scheduleId: 101,
-            status: "LATE",
-            checkedAt: "2025-01-10 10:05:00"
-        }
-    ]);
-
-    useEffect(() => {
-        api.get("/attendance")
-            .then((res) => {
-                if (Array.isArray(res.data) && res.data.length > 0) {
-                    setAttendance(res.data);
-                }
-            })
-            .catch((err) => console.error("출석 조회 실패 (더미 유지):", err));
-    }, []);
-
-    return (
-        <div className="mt-4">
-            <h4>🗓 전체 출석 현황</h4>
-
-            <table className="table table-striped mt-3">
-                <thead>
-                    <tr>
-                        <th>출석ID</th>
-                        <th>사용자ID</th>
-                        <th>일정ID</th>
-                        <th>상태</th>
-                        <th>출석 시간</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    {attendance.map((a) => (
-                        <tr key={a.attendanceId}>
-                            <td>{a.attendanceId}</td>
-                            <td>{a.userId}</td>
-                            <td>{a.scheduleId}</td>
-                            <td>{a.status}</td>
-                            <td>{a.checkedAt}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-};
 
 // ------------------------------------------------------
-// 🔵 메인 UserList (더미 + API 대체 구조 유지)
+// 2) 메인 UserList
 // ------------------------------------------------------
 const UserList = () => {
-    const [activeTab, setActiveTab] = useState("users");
-
-    const [users, setUsers] = useState([
-        // ⭐ 더미 데이터
-        {
-            userId: 1,
-            username: "student01",
-            name: "홍길동",
-            email: "hong@example.com",
-            role: "USER",
-            status: "Active"
-        },
-        {
-            userId: 2,
-            username: "leader01",
-            name: "김리더",
-            email: "leader@example.com",
-            role: "LEADER",
-            status: "Inactive"
-        }
-    ]);
+    const { user } = useContext(AuthContext); // 🔥 로그인한 사용자 정보
+    const [users, setUsers] = useState([]);
 
     const [currentUser, setCurrentUser] = useState(null);
 
+    // 모달
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
 
-    // 🔥 API가 성공하면 API 데이터로 교체
+    // ------------------------------------------------------
+    // 🔥 관리자 인증 정보 로딩 후만 fetchUsers 실행하도록 수정
+    // ------------------------------------------------------
     useEffect(() => {
-        api.get("/users")
-            .then((res) => {
-                if (Array.isArray(res.data) && res.data.length > 0) {
-                    setUsers(res.data);
-                } else {
-                    console.warn("API 사용자 목록 없음 → 더미 유지");
-                }
-            })
-            .catch((err) => console.error("사용자 목록 불러오기 실패 → 더미 유지:", err));
-    }, []);
+        if (!user) return; // 아직 로그인 정보 없음 → API 호출하지 않음
 
-    // 🔵 수정
-    const handleEdit = (user) => {
-        setCurrentUser(user);
+        fetchUsers();
+    }, [user]); // user가 준비되면 API 실행
+
+
+    const fetchUsers = async () => {
+        try {
+            const res = await api.get("/admin/users");
+            setUsers(res.data);
+            console.log("관리자 모드 → 사용자 목록 로딩 성공");
+        } catch (err) {
+            console.error("🚨 사용자 목록 불러오기 실패:", err);
+        }
+    };
+
+    // ------------------------------------------------------
+    // 수정
+    // ------------------------------------------------------
+    const handleEdit = (u) => {
+        setCurrentUser(u);
         setIsEditModalOpen(true);
     };
 
-    const handleSave = (updatedUser) => {
-        api.put(`/users/${updatedUser.userId}`, updatedUser).then(() => {
-            setUsers(
-                users.map((u) =>
+    const handleSave = async (updatedUser) => {
+        try {
+            await api.put(`/admin/users/${updatedUser.userId}`, updatedUser);
+            setUsers((prev) =>
+                prev.map((u) =>
                     u.userId === updatedUser.userId ? updatedUser : u
                 )
             );
             setIsEditModalOpen(false);
-        });
+        } catch (err) {
+            console.error("수정 실패:", err);
+        }
     };
 
-    // 🔵 삭제
-    const handleDeleteClick = (user) => {
-        setCurrentUser(user);
+    // ------------------------------------------------------
+    // 삭제
+    // ------------------------------------------------------
+    const handleDeleteClick = (u) => {
+        setCurrentUser(u);
         setIsDeleteModalOpen(true);
     };
 
-    const handleDeleteConfirm = (userId) => {
-        api.delete(`/users/${userId}`).then(() => {
-            setUsers(users.filter((u) => u.userId !== userId));
+    const handleDeleteConfirm = async (userId) => {
+        try {
+            await api.delete(`/admin/users/${userId}`);
+            setUsers((prev) => prev.filter((u) => u.userId !== userId));
             setIsDeleteModalOpen(false);
-        });
+        } catch (err) {
+            console.error("삭제 실패:", err);
+        }
     };
 
-    // 🔵 상태 변경
-    const handleStatusChange = (user, newStatus) => {
-        setCurrentUser({ ...user, targetStatus: newStatus });
+    // ------------------------------------------------------
+    // 상태 변경
+    // ------------------------------------------------------
+    const handleStatusChange = (userObj, newStatus) => {
+        setCurrentUser({ ...userObj, targetStatus: newStatus });
         setIsStatusModalOpen(true);
     };
 
-    const handleStatusChangeConfirm = (userId, newStatus) => {
-        api.patch(`/users/${userId}`, { status: newStatus }).then(() => {
-            setUsers(
-                users.map((u) =>
+    const handleStatusChangeConfirm = async (userId, newStatus) => {
+        try {
+            await api.patch(`/admin/users/${userId}/status`, {
+                status: newStatus,
+            });
+
+            setUsers((prev) =>
+                prev.map((u) =>
                     u.userId === userId ? { ...u, status: newStatus } : u
                 )
             );
+
             setIsStatusModalOpen(false);
-        });
+        } catch (err) {
+            console.error("상태 변경 실패:", err);
+        }
     };
+
 
     return (
         <div>
             <h2 className="mb-4">
                 <MdPeopleAlt size={28} className="me-2" />
-                사용자 관리
+                사용자 관리 (관리자)
             </h2>
 
-            {/* 🔥 탭 */}
-            <ul className="nav nav-tabs mb-4">
-                <li className="nav-item">
-                    <button
-                        className={`nav-link ${activeTab === "users" ? "active" : ""}`}
-                        onClick={() => setActiveTab("users")}
-                    >
-                        사용자 목록
-                    </button>
-                </li>
-
-                <li className="nav-item">
-                    <button
-                        className={`nav-link ${
-                            activeTab === "attendance" ? "active" : ""
-                        }`}
-                        onClick={() => setActiveTab("attendance")}
-                    >
-                        전체 출석 조회
-                    </button>
-                </li>
-            </ul>
-
-            {/* 🔥 탭별 화면 */}
-            {activeTab === "users" && (
-                <UserTable
-                    users={users}
-                    onEdit={handleEdit}
-                    onDelete={handleDeleteClick}
-                    onStatusChange={handleStatusChange}
-                />
-            )}
-
-            {activeTab === "attendance" && <AllAttendanceTable />}
+            {/* 사용자 테이블 */}
+            <UserTable
+                users={users}
+                onEdit={handleEdit}
+                onDelete={handleDeleteClick}
+                onStatusChange={handleStatusChange}
+            />
 
             {/* 모달 */}
             {isEditModalOpen && currentUser && (

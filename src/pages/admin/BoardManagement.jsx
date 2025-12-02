@@ -74,8 +74,7 @@ const BoardManagement = () => {
       .post("/study-posts", {
         title: noticeTitle,
         content: noticeContent,
-        type: "NOTICE",
-        leaderId: 1,
+        type: "NOTICE"
       })
       .then(() => {
         alert("공지사항이 등록되었습니다.");

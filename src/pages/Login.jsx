@@ -4,14 +4,6 @@ import { AuthContext } from "../auth/AuthContext";
 import api from "../api/axios";
 import AlertModal from "./AlertModal";
 
-// 더미 JWT 토큰 생성 함수 (슈퍼유저/관리자 테스트용)
-function createDummyToken(role) {
-  const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const payload = btoa(JSON.stringify({ userId: "0", role }));
-  const signature = "dummysignature";
-  return `${header}.${payload}.${signature}`;
-}
-
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -34,37 +26,8 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 1) 슈퍼유저, 관리자 더미 로그인 (프론트 테스트용)
-    if (username === "superuser" && password === "1234") {
-      const dummyToken = createDummyToken("ADMIN");
-      login(dummyToken);      
-      setModal({
-        show: true,
-        title: "슈퍼유저 로그인 성공",
-        message: "슈퍼유저로 로그인했습니다.",
-        type: "success",
-        redirect: "/main",
-      });
-      return;
-    }
-
-    if (username === "admin" && password === "1234") {
-      const dummyToken = createDummyToken("ADMIN");
-      login(dummyToken);      
-      setModal({
-        show: true,
-        title: "관리자 로그인 성공",
-        message: "관리자 페이지로 이동합니다.",
-        type: "admin",
-        redirect: "/admin",
-      });
-      return;
-    }
-
-    // 2) 실제 StudyLinker 로그인 API 호출
     try {
       const res = await api.post("/auth/tokens", { username, password });
-
       const token = res.data.accessToken;
 
       if (!token) {
@@ -76,20 +39,32 @@ const Login = () => {
         });
         return;
       }
-     
-      // JWT 내부 payload에서 role 추출
+
+      // JWT payload에서 role 추출
       const payload = JSON.parse(atob(token.split(".")[1]));
       const role = payload.role;
 
-      login(token);  // 여기서 백엔드에서 온 role을 그대로 저장
+      // 토큰 저장 및 AuthContext 상태 업데이트
+      login(token);
 
-      setModal({
-        show: true,
-        title: "로그인 성공",
-        message: "환영합니다! 메인 페이지로 이동합니다.",
-        type: "success",
-        redirect: "/main",
-      });
+      // role 에 따라 이동 경로/메시지 분기
+      if (role === "ADMIN") {
+        setModal({
+          show: true,
+          title: "관리자 로그인 성공",
+          message: "관리자 페이지로 이동합니다.",
+          type: "admin",
+          redirect: "/admin",
+        });
+      } else {
+        setModal({
+          show: true,
+          title: "로그인 성공",
+          message: "환영합니다! 메인 페이지로 이동합니다.",
+          type: "success",
+          redirect: "/main",
+        });
+      }
     } catch (err) {
       console.error("로그인 오류:", err);
       setModal({
