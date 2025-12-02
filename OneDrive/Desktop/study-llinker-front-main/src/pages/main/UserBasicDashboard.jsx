@@ -5,36 +5,33 @@ import Chart from "chart.js/auto";
 import "react-calendar/dist/Calendar.css";
 import api from "../../api/axios";
 
-// ✅ currentUserId를 Prop으로 받습니다.
-const UserBasicDashboard = ({ currentUserId }) => {
+const UserBasicDashboard = () => {
   const [schedules, setSchedules] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
   const pieChartRef = useRef(null);
   const barChartRef = useRef(null);
 
-  // ✅ Prop으로 받은 currentUserId를 사용
-  const userId = currentUserId;
+  // 🔹 공통 헬퍼: 백엔드 응답이 snake_case / camelCase 섞여도 대응
+  const getStart = (s) => s.startTime ?? s.start_time;
+  const getEnd = (s) => s.endTime ?? s.end_time;
+  const getId = (s) => s.scheduleId ?? s.schedule_id;
 
   const loadData = async () => {
     try {
-      console.log("[Dashboard] loadData 호출, userId =", userId);
+      console.log("[Dashboard] 데이터 로드 시작");
 
-      if (!userId) {
-        console.error("[Dashboard] userId 없음! Dashboard 데이터 로드를 중단합니다.");
-        setLoading(false);
-        return;
-      }
-
-      console.log("[Dashboard] /study-schedules/me 요청 시작");
+      // ✅ 내 일정 조회
       const scheduleRes = await api.get("/study-schedules/me");
-      console.log("[Dashboard] /study-schedules/me 응답:", scheduleRes.data);
-      setSchedules(scheduleRes.data);
+      console.log("[Dashboard] /study-schedules/me =", scheduleRes.data);
 
-      console.log("[Dashboard] /attendance/user/" + userId + " 요청 시작");
-      const attendanceRes = await api.get(`/attendance/user/${userId}`);
-      console.log("[Dashboard] /attendance/user 응답:", attendanceRes.data);
-      setAttendance(attendanceRes.data);
+      // 그대로 저장 (필드 이름은 헬퍼로 처리)
+      setSchedules(scheduleRes.data || []);
+
+      // ✅ 내 출석 조회
+      const attendanceRes = await api.get("/attendance/me");
+      console.log("[Dashboard] /attendance/me =", attendanceRes.data);
+      setAttendance(attendanceRes.data || []);
     } catch (err) {
       console.error("[Dashboard] 대시보드 데이터 로드 실패:", err);
       alert("대시보드 데이터를 불러오는 데 실패했습니다.");
@@ -43,13 +40,10 @@ const UserBasicDashboard = ({ currentUserId }) => {
     }
   };
 
-  // ✅ currentUserId가 유효할 때만 loadData를 호출합니다.
   useEffect(() => {
-    console.log("[Dashboard] useEffect 실행, currentUserId =", currentUserId);
-    if (currentUserId) {
-      loadData();
-    }
-  }, [currentUserId]);
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 2) 출석 현황 계산
   const attendanceStats = {
@@ -61,7 +55,10 @@ const UserBasicDashboard = ({ currentUserId }) => {
   // 3) 월별 참여 횟수 계산
   const monthMap = {};
   schedules.forEach((s) => {
-    const m = new Date(s.start_time).getMonth() + 1;
+    const start = getStart(s);
+    if (!start) return;
+
+    const m = new Date(start).getMonth() + 1;
     monthMap[m] = (monthMap[m] || 0) + 1;
   });
 
@@ -79,27 +76,28 @@ const UserBasicDashboard = ({ currentUserId }) => {
   endOfWeek.setHours(23, 59, 59, 999);
 
   const weeklySchedules = schedules.filter((s) => {
-    const d = new Date(s.start_time);
+    const start = getStart(s);
+    if (!start) return false;
+
+    const d = new Date(start);
     return d >= startOfWeek && d <= endOfWeek;
   });
 
-  // 5) 목표 달성률 계산
+  // 5) 이번 주 목표 달성률 계산
   const target = weeklySchedules.length;
-  const done = weeklySchedules.filter(
-    (s) => new Date(s.end_time) < new Date()
-  ).length;
+  const done = weeklySchedules.filter((s) => {
+    const end = getEnd(s);
+    if (!end) return false;
+    return new Date(end) < new Date();
+  }).length;
 
   const goalPercent = target > 0 ? (done / target) * 100 : 0;
 
   // 6) 차트 렌더링
   useEffect(() => {
-    if (loading) {
-      console.log("[Dashboard] 로딩 중 → 차트 렌더링 스킵");
-      return;
-    }
+    if (loading) return;
 
-    console.log("[Dashboard] 차트 렌더링 시작");
-
+    // ---- 파이 차트 (출석/지각/결석 비율) ----
     const ctx1 = document.getElementById("attendanceRatioChart");
     if (ctx1) {
       if (pieChartRef.current) {
@@ -124,6 +122,7 @@ const UserBasicDashboard = ({ currentUserId }) => {
       });
     }
 
+    // ---- 막대 차트 (월별 참여 횟수) ----
     const ctx2 = document.getElementById("participationCountChart");
     if (ctx2) {
       if (barChartRef.current) {
@@ -144,8 +143,9 @@ const UserBasicDashboard = ({ currentUserId }) => {
         },
       });
     }
-  }, [loading, schedules]);
+  }, [loading, schedules, attendance]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 언마운트 시 차트 정리
   useEffect(() => {
     return () => {
       if (pieChartRef.current) pieChartRef.current.destroy();
@@ -165,7 +165,9 @@ const UserBasicDashboard = ({ currentUserId }) => {
           <div className="row g-4">
             <div className="col-md-6">
               <div className="card">
-                <div className="card-header bg-primary text-white">출석/참여 현황</div>
+                <div className="card-header bg-primary text-white">
+                  출석/참여 현황
+                </div>
                 <div className="card-body">
                   <div className="chart-wrap" style={{ height: "320px" }}>
                     <canvas id="attendanceRatioChart"></canvas>
@@ -177,7 +179,9 @@ const UserBasicDashboard = ({ currentUserId }) => {
             {/* 월별 참여 횟수 */}
             <div className="col-md-6">
               <div className="card">
-                <div className="card-header bg-success text-white">월별 참여 횟수</div>
+                <div className="card-header bg-success text-white">
+                  월별 참여 횟수
+                </div>
                 <div className="card-body">
                   <div className="chart-wrap" style={{ height: "320px" }}>
                     <canvas id="participationCountChart"></canvas>
@@ -189,36 +193,49 @@ const UserBasicDashboard = ({ currentUserId }) => {
 
           {/* 이번 주 일정 + 목표 달성률 */}
           <div className="row g-4 mt-1">
+            {/* 이번 주 내 스케줄 */}
             <div className="col-lg-8">
               <div className="card">
-                <div className="card-header bg-warning text-dark">이번 주 내 스케줄</div>
+                <div className="card-header bg-warning text-dark">
+                  이번 주 내 스케줄
+                </div>
                 <div className="card-body">
                   <ul className="list-group">
                     {weeklySchedules.length > 0 ? (
-                      weeklySchedules.map((s) => (
-                        <li
-                          key={s.schedule_id}
-                          className="list-group-item d-flex justify-content-between align-items-center"
-                        >
-                          <div>
-                            <div className="fw-semibold">{s.title}</div>
-                            <div className="text-muted small">
-                              {s.start_time.slice(0, 10)} · {s.location}
-                            </div>
-                          </div>
+                      weeklySchedules.map((s) => {
+                        const start = getStart(s);
+                        const startDateStr = start
+                          ? String(start).slice(0, 10)
+                          : "-";
 
-                          <span className="badge text-bg-primary">
-                            D-
-                            {Math.max(
+                        const dday = start
+                          ? Math.max(
                               0,
                               Math.ceil(
-                                (new Date(s.start_time) - new Date()) /
+                                (new Date(start) - new Date()) /
                                   (1000 * 60 * 60 * 24)
                               )
-                            )}
-                          </span>
-                        </li>
-                      ))
+                            )
+                          : "-";
+
+                        return (
+                          <li
+                            key={getId(s)}
+                            className="list-group-item d-flex justify-content-between align-items-center"
+                          >
+                            <div>
+                              <div className="fw-semibold">{s.title}</div>
+                              <div className="text-muted small">
+                                {startDateStr} · {s.location}
+                              </div>
+                            </div>
+
+                            <span className="badge text-bg-primary">
+                              D-{dday}
+                            </span>
+                          </li>
+                        );
+                      })
                     ) : (
                       <p className="text-muted small">
                         이번 주 예정된 일정이 없어요.
@@ -229,10 +246,12 @@ const UserBasicDashboard = ({ currentUserId }) => {
               </div>
             </div>
 
-            {/* 목표 달성률 */}
+            {/* 학습 목표 달성률 */}
             <div className="col-lg-4">
               <div className="card">
-                <div className="card-header bg-info text-dark">학습 목표 달성률</div>
+                <div className="card-header bg-info text-dark">
+                  학습 목표 달성률
+                </div>
                 <div className="card-body">
                   <div className="d-flex justify-content-between align-items-end mb-2">
                     <div className="small text-muted">이번 주 목표</div>

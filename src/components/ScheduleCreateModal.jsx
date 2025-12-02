@@ -82,8 +82,8 @@ const ScheduleCreateModal = ({
       title,
       description,
       location,
-      start_time: finalStart,
-      end_time: finalEnd,
+      startTime: finalStart,
+      endTime: finalEnd,
       group_id: isStudyMode
         ? (isUpdate ? scheduleData.group_id : groupId)
         : null,
