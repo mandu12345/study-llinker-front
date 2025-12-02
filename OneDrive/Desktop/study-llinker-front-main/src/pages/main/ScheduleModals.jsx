@@ -1,5 +1,4 @@
 // src/pages/main/ScheduleModals.jsx
-
 import React, { useState } from "react";
 import api from "../../api/axios";
 
@@ -28,8 +27,9 @@ export const CreateLeaderScheduleModal = ({ onClose, onCreated }) => {
         {
           title: form.title,
           description: form.description,
-          start_time: form.date + "T" + (form.time || "00:00"),
-          end_time: form.date + "T" + (form.time || "00:00"),
+          // ✅ 백엔드 DTO: startTime / endTime (camelCase)
+          startTime: form.date + "T" + (form.time || "00:00"),
+          endTime: form.date + "T" + (form.time || "00:00"),
           location: form.location
         }
       );
@@ -134,8 +134,9 @@ export const CreateUserScheduleModal = ({ onClose, onCreated }) => {
       const res = await api.post("/study-schedules", {
         title: form.title,
         description: form.description,
-        start_time: form.date + "T" + (form.time || "00:00"),
-        end_time: form.date + "T" + (form.time || "00:00"),
+        // ✅ 여기도 camelCase로 변경
+        startTime: form.date + "T" + (form.time || "00:00"),
+        endTime: form.date + "T" + (form.time || "00:00"),
         location: form.location
       });
 
