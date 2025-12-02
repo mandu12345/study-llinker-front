@@ -1,0 +1,51 @@
+/* src/pages/Mainpage.css */
+
+/* 달력에서 일정 있는 날짜 강조 */
+.react-calendar .highlight {
+  background: #0d6efd; /* 부트스트랩 primary 색상 */
+  color: white;
+  border-radius: 50%;
+}
+
+/* 선택한 날짜 강조 (react-calendar 기본 클래스 사용 가능) */
+.react-calendar .react-calendar__tile--active {
+  background: #198754 !important; /* Bootstrap success 색상 */
+  color: white;
+}
+
+/* 일정 카드 스타일 */
+.schedule-card {
+  margin-bottom: 10px;
+}
+
+/* 일정 강조 */
+.highlight {
+  background: #0d6efd !important;
+  color: white !important;
+  border-radius: 50%;
+}
+
+/* 알림 읽음/안읽음 스타일 */
+.unread-notification {
+  background-color: #0d6efd;
+  color: #fff;
+  font-weight: 600;
+}
+
+.unread-notification:hover {
+  background-color: #0b5ed7;
+}
+
+.read-notification {
+  background-color: #f1f1f1;
+  color: #555;
+  font-weight: 400;
+}
+
+.read-notification:hover {
+  background-color: #e2e2e2;
+}
+
+.navbar-custom {
+  background-color: #f08080; /* 원하는 색상 */
+}
