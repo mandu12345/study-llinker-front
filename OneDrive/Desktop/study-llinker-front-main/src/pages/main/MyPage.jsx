@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
+import StudyGroupDetailModal from "../../components/StudyGroupDetailModal";
 
 const MyPage = () => {
   const navigate = useNavigate();
@@ -15,9 +16,13 @@ const MyPage = () => {
     comments: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [showGroupModal, setShowGroupModal] = useState(false);
 
   // 1) 사용자 정보 조회
+  
   const fetchUserProfile = async () => {
+    
     try {
       const res = await api.get("/users/profile");
       setUserInfo(res.data);
@@ -41,6 +46,7 @@ const MyPage = () => {
   const fetchMannerScore = async (userId) => {
     try {
       const res = await api.get(`/manners/${userId}`);
+      console.log("📌 서버 매너 점수 응답:", res.data);
       setManner(res.data);
     } catch (err) {
       console.error("매너점수 조회 오류:", err);
@@ -103,12 +109,12 @@ const MyPage = () => {
 
   // 전체 데이터 로드
   useEffect(() => {
+    
     const load = async () => {
       const user = await fetchUserProfile();
       if (user) {
-        const userId = user.user_id;
+        const userId = user.userId  ;
         const username = user.username;
-
         await Promise.all([
           fetchJoinedGroups(userId),
           fetchMannerScore(userId),
@@ -158,14 +164,14 @@ const MyPage = () => {
           <div className="progress" style={{ height: "25px" }}>
             <div
               className={`progress-bar ${
-                (manner?.current_manner_score || 0) >= 70
+                (manner?.currentMannerScore  || 0) >= 70
                   ? "bg-success"
                   : "bg-warning"
               }`}
               role="progressbar"
-              style={{ width: `${manner?.current_manner_score || 0}%` }}
+              style={{ width: `${manner?.currentMannerScore  || 0}%` }}
             >
-              {manner?.current_manner_score ?? 0}점
+              {manner?.currentMannerScore  ?? 0}점
             </div>
           </div>
         </div>
@@ -182,12 +188,12 @@ const MyPage = () => {
                 <li
                   key={g.group_id}
                   className="list-group-item d-flex justify-content-between align-items-center"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => {
+                    setSelectedGroup(g);
+                    setShowGroupModal(true);
+                  }}
                 >
-                  <div>
-                    <strong>{g.title}</strong>
-                    <br />
-                    리더: {g.leader_name}
-                  </div>
                   <span className="badge bg-primary">
                     상태: {g.status}
                   </span>
@@ -210,6 +216,15 @@ const MyPage = () => {
           <p>댓글 수: {activity.comments}개</p>
         </div>
       </div>
+
+      {/* 그룹 상세 모달 */}
+      {showGroupModal && selectedGroup && (
+        <StudyGroupDetailModal
+          group={selectedGroup}
+          userId={userInfo.user_id}
+          onClose={() => setShowGroupModal(false)}
+        />
+      )}
     </div>
   );
 };
