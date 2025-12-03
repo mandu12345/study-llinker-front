@@ -1,5 +1,7 @@
+// src/pages/main/StudyList.jsx
 import React, { useState, useEffect, useRef } from "react";
 import api from "../../api/axios";
+import StudyGroupDetailModal from "../../components/StudyGroupDetailModal";
 
 function getDistance(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -16,6 +18,7 @@ function getDistance(lat1, lng1, lat2, lng2) {
 
 const StudyList = () => {
   const [groups, setGroups] = useState([]);
+  const [joinedGroups, setJoinedGroups] = useState(new Set()); // 이미 가입/신청된 그룹
   const [searchTerm, setSearchTerm] = useState("");
   const [userLocation, setUserLocation] = useState(null);
 
@@ -36,14 +39,28 @@ const StudyList = () => {
     title: "",
     description: "",
     maxMembers: 10,
-    category: [], // 배열 → 전송 시 JSON.stringify 필요
+    category: [],
     latitude: null,
     longitude: null,
   });
 
-  // ================================
+  // 로그인 사용자 정보
+  const [myUserId, setMyUserId] = useState(null);
+  const [isLeader, setIsLeader] = useState(false);
+
+  // -------------------------------
+  // 현재 로그인 사용자 정보 조회
+  // -------------------------------
+  useEffect(() => {
+    api
+      .get("/users/profile")
+      .then((res) => setMyUserId(res.data.user_id))
+      .catch(() => {});
+  }, []);
+
+  // -------------------------------
   // 현재 위치 가져오기
-  // ================================
+  // -------------------------------
   useEffect(() => {
     navigator.geolocation?.getCurrentPosition(
       (pos) =>
@@ -55,9 +72,9 @@ const StudyList = () => {
     );
   }, []);
 
-  // ================================
-  // 전체 스터디 조회
-  // ================================
+  // -------------------------------
+  // 스터디 목록 조회
+  // -------------------------------
   const loadGroups = async () => {
     try {
       const res = await api.get("/study-groups");
@@ -65,7 +82,9 @@ const StudyList = () => {
       const parsed = res.data.map((g) => ({
         ...g,
         categoryList:
-          typeof g.category === "string" ? JSON.parse(g.category) : [],
+          typeof g.category === "string" && g.category.trim().startsWith("[")
+            ? JSON.parse(g.category)
+            : [],
       }));
 
       setGroups(parsed);
@@ -79,12 +98,41 @@ const StudyList = () => {
     loadGroups();
   }, []);
 
-  // ================================
-  // 생성 모달 지도 클릭 이벤트
-  // ================================
+  // -------------------------------
+  // 이미 신청한 그룹 set 생성
+  // -------------------------------
+  useEffect(() => {
+    if (!myUserId) return;
+
+    const checkUserMembership = async () => {
+      const newSet = new Set();
+
+      for (const g of groups) {
+        try {
+          const res = await api.get(
+            `/study-groups/${g.groupId}/members/${myUserId}`
+          );
+          if (res.data && res.data.status !== "REJECTED") {
+            newSet.add(g.groupId);
+          }
+        } catch (err) {
+          // 없는 경우 → 신청 안 한 그룹
+        }
+      }
+
+      setJoinedGroups(newSet);
+    };
+
+    checkUserMembership();
+  }, [myUserId, groups]);
+
+  // -------------------------------
+  // 생성 모달 지도
+  // -------------------------------
   useEffect(() => {
     if (showForm && window.kakao?.maps) {
       const container = document.getElementById("createMap");
+      if (!container) return;
 
       const map = new window.kakao.maps.Map(container, {
         center: new window.kakao.maps.LatLng(
@@ -117,9 +165,9 @@ const StudyList = () => {
     }
   }, [showForm, userLocation]);
 
-  // ================================
+  // -------------------------------
   // 스터디 생성
-  // ================================
+  // -------------------------------
   const handleCreate = async (e) => {
     e.preventDefault();
 
@@ -132,7 +180,7 @@ const StudyList = () => {
         title: formData.title,
         description: formData.description,
         maxMembers: formData.maxMembers,
-        category: JSON.stringify(formData.category), // ★ 문자열로 보내기
+        category: JSON.stringify(formData.category ?? []),
         latitude: formData.latitude,
         longitude: formData.longitude,
       });
@@ -146,34 +194,44 @@ const StudyList = () => {
     }
   };
 
-  // ================================
-  // 리더 정보 조회
-  // ================================
+  // -------------------------------
+  // 리더 조회
+  // -------------------------------
   const fetchGroupLeader = async (groupId) => {
     try {
       const res = await api.get(`/study-groups/${groupId}/leader`);
-      return res.data;
+      return res.data; // { memberId, groupId, userId, username, name, ... }
     } catch (err) {
       console.error("리더 조회 실패:", err);
       return null;
     }
   };
 
-  // ================================
+  // -------------------------------
   // 상세 모달 열기
-  // ================================
+  // -------------------------------
   const openDetailModal = async (group) => {
     const leader = await fetchGroupLeader(group.groupId);
 
+    // 리더 여부 판별 (내 userId === 이 그룹 리더 ID)
+    if (leader && leader.userId === myUserId) {
+      setIsLeader(true);
+    } else {
+      setIsLeader(false);
+    }
+
     setSelectedGroup({
       ...group,
+      group_id: group.groupId, // DetailModal에서 group.group_id 쓰므로 맞춰줌
       leaderName: leader?.name || "정보 없음",
     });
 
-    // 주소 변환
     if (window.kakao?.maps) {
       const geocoder = new window.kakao.maps.services.Geocoder();
-      const coord = new window.kakao.maps.LatLng(group.latitude, group.longitude);
+      const coord = new window.kakao.maps.LatLng(
+        group.latitude,
+        group.longitude
+      );
 
       geocoder.coord2Address(
         coord.getLng(),
@@ -191,9 +249,29 @@ const StudyList = () => {
     setShowModal(true);
   };
 
-  // ================================
-  // 거리 계산 + 검색
-  // ================================
+  // -------------------------------
+  // 참여 신청
+  // -------------------------------
+  const handleJoin = async (groupId) => {
+    try {
+      await api.post(`/study-groups/${groupId}/members`);
+      alert("참여 신청 완료!");
+
+      setJoinedGroups((prev) => new Set(prev).add(groupId));
+    } catch (err) {
+      const msg = err.response?.data || "신청 실패";
+
+      if (msg.includes("이미 신청했거나 가입된")) {
+        setJoinedGroups((prev) => new Set(prev).add(groupId));
+      }
+
+      alert(msg);
+    }
+  };
+
+  // -------------------------------
+  // 검색 + 거리 계산
+  // -------------------------------
   const filteredGroups = groups
     .filter((g) => {
       const t = searchTerm.toLowerCase();
@@ -215,11 +293,13 @@ const StudyList = () => {
     })
     .sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
 
+  // -------------------------------
+  // UI
+  // -------------------------------
   return (
     <div>
       <h2>스터디 목록</h2>
 
-      {/* 검색 */}
       <input
         className="form-control mb-3"
         placeholder="스터디 검색..."
@@ -227,7 +307,6 @@ const StudyList = () => {
         onChange={(e) => setSearchTerm(e.target.value)}
       />
 
-      {/* 생성 버튼 */}
       <div className="text-end mb-3">
         <button className="btn btn-success" onClick={() => setShowForm(true)}>
           ➕ 새 스터디 생성
@@ -255,11 +334,13 @@ const StudyList = () => {
                   상세보기
                 </button>
 
+                {/* 신청 버튼 (비활성화 포함) */}
                 <button
                   className="btn btn-primary btn-sm"
-                  onClick={() => api.post(`/study-groups/${g.groupId}/members`).then(() => alert("참여 신청 완료!"))}
+                  disabled={joinedGroups.has(g.groupId)}
+                  onClick={() => handleJoin(g.groupId)}
                 >
-                  참여 신청
+                  {joinedGroups.has(g.groupId) ? "신청됨" : "참여 신청"}
                 </button>
               </div>
             </div>
@@ -269,54 +350,74 @@ const StudyList = () => {
 
       {/* 상세 모달 */}
       {showModal && selectedGroup && (
-        <div className="modal d-block" style={{ background: "rgba(0,0,0,0.4)" }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header bg-primary text-white">
-                <h5>{selectedGroup.title}</h5>
-                <button
-                  className="btn-close btn-close-white"
-                  onClick={() => setShowModal(false)}
-                />
-              </div>
-
-              <div className="modal-body">
-                <p><strong>리더:</strong> {selectedGroup.leaderName}</p>
-                <p><strong>설명:</strong> {selectedGroup.description}</p>
-                <p><strong>주소:</strong> {selectedAddress}</p>
-
-                <div className="mb-2">
-                  <strong>카테고리:</strong>
-                  <br />
-                  {selectedGroup.categoryList.map((tag, idx) => (
-                    <span key={idx} className="badge bg-info text-dark me-2">
-                      #{tag}
-                    </span>
-                  ))}
+        isLeader ? (
+          <StudyGroupDetailModal
+            group={selectedGroup}
+            userId={myUserId}
+            onClose={() => setShowModal(false)}
+          />
+        ) : (
+          <div
+            className="modal d-block"
+            style={{ background: "rgba(0,0,0,0.4)" }}
+          >
+            <div className="modal-dialog">
+              <div className="modal-content">
+                <div className="modal-header bg-primary text-white">
+                  <h5>{selectedGroup.title}</h5>
+                  <button
+                    className="btn-close btn-close-white"
+                    onClick={() => setShowModal(false)}
+                  />
                 </div>
 
-                <p>
-                  <strong>좌표:</strong> {selectedGroup.latitude},{" "}
-                  {selectedGroup.longitude}
-                </p>
-              </div>
+                <div className="modal-body">
+                  <p>
+                    <strong>리더:</strong> {selectedGroup.leaderName}
+                  </p>
+                  <p>
+                    <strong>설명:</strong> {selectedGroup.description}
+                  </p>
+                  <p>
+                    <strong>주소:</strong> {selectedAddress}
+                  </p>
 
-              <div className="modal-footer">
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setShowModal(false)}
-                >
-                  닫기
-                </button>
+                  <div className="mb-2">
+                    <strong>카테고리:</strong>
+                    <br />
+                    {selectedGroup.categoryList.map((tag, idx) => (
+                      <span key={idx} className="badge bg-info text-dark me-2">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+
+                  <p>
+                    <strong>좌표:</strong> {selectedGroup.latitude},{" "}
+                    {selectedGroup.longitude}
+                  </p>
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setShowModal(false)}
+                  >
+                    닫기
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )
       )}
 
       {/* 생성 모달 */}
       {showForm && (
-        <div className="modal d-block" style={{ background: "rgba(0,0,0,0.4)" }}>
+        <div
+          className="modal d-block"
+          style={{ background: "rgba(0,0,0,0.4)" }}
+        >
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
               <div className="modal-header bg-success text-white">
@@ -400,6 +501,7 @@ const StudyList = () => {
                     ))}
                   </div>
 
+                  {/* 지도 */}
                   <div className="mt-3">
                     <h6>지도에서 위치 선택</h6>
                     <div

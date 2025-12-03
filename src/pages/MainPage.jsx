@@ -161,6 +161,29 @@ const MainPage = () => {
     }
     console.log("[MainPage] 일정 조회 시작 (userId:", userId, ")");
     loadSchedules();
+  }, [userId]); 
+
+  // ------------------------------
+  // 2-A) 리더 여부 확인 + 상세 디버깅 로그
+  // ------------------------------
+  useEffect(() => {
+    if (!userId) return;
+
+    const checkLeader = async () => {
+      try {
+        const res = await api.get("/study-groups");
+        const groups = res.data || [];
+
+        const amLeader = groups.some(g => g.leaderId === userId);
+
+        console.log("📌 리더 여부:", amLeader);
+        setIsLeader(amLeader);
+      } catch (e) {
+        console.error("리더 여부 체크 실패:", e);
+      }
+    };
+
+    checkLeader();
   }, [userId]);
 
   // ------------------------------

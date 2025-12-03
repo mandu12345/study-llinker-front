@@ -8,43 +8,36 @@ const BoardDetail = () => {
   const navigate = useNavigate();
 
   const [post, setPost] = useState(null);
-
   const [comments, setComments] = useState([]);
-
   const [reviews, setReviews] = useState([]);
-  const [editingReviewId, setEditingReviewId] = useState(null);
-  const [editReviewText, setEditReviewText] = useState("");
 
   const [newComment, setNewComment] = useState("");
   const [newReview, setNewReview] = useState("");
 
-  const [loading, setLoading] = useState(true);
+  const [editingReviewId, setEditingReviewId] = useState(null);
+  const [editReviewText, setEditReviewText] = useState("");
 
   const [userId, setUserId] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // -----------------------------
-  // 로그인 사용자 정보 가져오기
-  // -----------------------------
+  // 로그인 사용자 정보 불러오기
   useEffect(() => {
-    api.get("/users/profile")
+    api
+      .get("/users/profile")
       .then((res) => setUserId(res.data.user_id))
       .catch(() => {});
   }, []);
 
-  // -----------------------------
-  // 게시글 + 댓글 + 리뷰 불러오기
-  // -----------------------------
+  // 게시글, 댓글, 리뷰 불러오기
   useEffect(() => {
     const load = async () => {
       try {
         const res = await api.get(`/study-posts/${postId}`);
         setPost(res.data);
 
-        // 댓글 조회
         const cRes = await api.get(`/study-posts/${postId}/comments`);
         setComments(cRes.data);
 
-        // 리뷰 게시글이면 리뷰 조회
         if (res.data.type === "REVIEW") {
           const rRes = await api.get(`/study-posts/${postId}/reviews`);
           setReviews(rRes.data);
@@ -63,12 +56,9 @@ const BoardDetail = () => {
 
   const isReviewPost = post.type === "REVIEW";
 
-  // -----------------------------
   // 게시글 삭제
-  // -----------------------------
   const deletePost = async () => {
     if (!window.confirm("삭제하시겠습니까?")) return;
-
     try {
       await api.delete(`/study-posts/${postId}`);
       alert("삭제 완료");
@@ -78,78 +68,91 @@ const BoardDetail = () => {
     }
   };
 
-  // -----------------------------
   // 댓글 작성
-  // -----------------------------
   const writeComment = async () => {
     if (!newComment.trim()) return;
 
-    await api.post(`/study-posts/${postId}/comments`, { content: newComment });
+    try {
+      await api.post(`/study-posts/${postId}/comments`, {
+        content: newComment,
+      });
 
-    const res = await api.get(`/study-posts/${postId}/comments`);
-    setComments(res.data);
-    setNewComment("");
+      const res = await api.get(`/study-posts/${postId}/comments`);
+      setComments(res.data);
+      setNewComment("");
+    } catch (err) {
+      console.error("댓글 등록 실패:", err);
+      alert("댓글 등록 실패");
+    }
   };
 
   // 댓글 삭제
   const deleteComment = async (cid) => {
     if (!window.confirm("삭제하시겠습니까?")) return;
 
-    await api.delete(`/study-posts/${postId}/comments/${cid}`);
-
-    setComments((prev) => prev.filter((c) => c.commentId !== cid));
+    try {
+      await api.delete(`/study-posts/${postId}/comments/${cid}`);
+      setComments((prev) => prev.filter((c) => c.commentId !== cid));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  // -----------------------------
   // 후기 작성
-  // -----------------------------
   const writeReview = async () => {
     if (!newReview.trim()) return;
 
-    await api.post(`/study-posts/${postId}/reviews`, {
-      content: newReview,
-      rating: 5,
-    });
+    try {
+      await api.post(`/study-posts/${postId}/reviews`, {
+        content: newReview,
+        rating: 5,
+      });
 
-    const res = await api.get(`/study-posts/${postId}/reviews`);
-    setReviews(res.data);
-    setNewReview("");
+      const res = await api.get(`/study-posts/${postId}/reviews`);
+      setReviews(res.data);
+      setNewReview("");
+    } catch (err) {
+      console.error("후기 작성 실패:", err);
+    }
   };
 
   // 후기 삭제
   const deleteReview = async (rid) => {
     if (!window.confirm("삭제하시겠습니까?")) return;
 
-    await api.delete(`/study-posts/${postId}/reviews/${rid}`);
-    setReviews((prev) => prev.filter((r) => r.reviewId !== rid));
+    try {
+      await api.delete(`/study-posts/${postId}/reviews/${rid}`);
+      setReviews((prev) => prev.filter((r) => r.reviewId !== rid));
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // 후기 수정 저장
   const saveReview = async (rid) => {
-    await api.patch(`/study-posts/${postId}/reviews/${rid}`, {
-      content: editReviewText,
-      rating: 5,
-    });
+    try {
+      await api.patch(`/study-posts/${postId}/reviews/${rid}`, {
+        content: editReviewText,
+        rating: 5,
+      });
 
-    const res = await api.get(`/study-posts/${postId}/reviews`);
-    setReviews(res.data);
+      const res = await api.get(`/study-posts/${postId}/reviews`);
+      setReviews(res.data);
 
-    setEditingReviewId(null);
-    setEditReviewText("");
+      setEditingReviewId(null);
+      setEditReviewText("");
+    } catch (err) {
+      console.error("후기 수정 실패:", err);
+    }
   };
 
   return (
     <div className="container mt-4">
-      <button
-        className="btn btn-secondary mb-3"
-        onClick={() => navigate("/main/board")}
-      >
+      <button className="btn btn-secondary mb-3" onClick={() => navigate("/main/board")}>
         ← 뒤로가기
       </button>
 
-      {/* -------------------- */}
       {/* 게시글 영역 */}
-      {/* -------------------- */}
       <div className="card mb-4">
         <div className="card-header">
           <h4>{post.title}</h4>
@@ -159,9 +162,7 @@ const BoardDetail = () => {
         <div className="card-body">
           <p>{post.content}</p>
 
-          <p className="text-muted">
-            작성자: {post.leaderName || "익명"}
-          </p>
+          <p className="text-muted">작성자: {post.leaderName || "익명"}</p>
 
           {post.leaderId === userId && (
             <>
@@ -171,7 +172,6 @@ const BoardDetail = () => {
               >
                 수정
               </button>
-
               <button className="btn btn-danger" onClick={deletePost}>
                 삭제
               </button>
@@ -180,9 +180,7 @@ const BoardDetail = () => {
         </div>
       </div>
 
-      {/* -------------------- */}
       {/* 후기 영역 */}
-      {/* -------------------- */}
       {isReviewPost && (
         <div className="mb-5">
           <h5>후기</h5>
@@ -198,10 +196,7 @@ const BoardDetail = () => {
                     onChange={(e) => setEditReviewText(e.target.value)}
                   />
 
-                  <button
-                    className="btn btn-primary btn-sm mt-2 me-2"
-                    onClick={() => saveReview(r.reviewId)}
-                  >
+                  <button className="btn btn-primary btn-sm mt-2 me-2" onClick={() => saveReview(r.reviewId)}>
                     저장
                   </button>
 
@@ -233,11 +228,7 @@ const BoardDetail = () => {
                       >
                         수정
                       </button>
-
-                      <button
-                        className="btn btn-danger btn-sm mt-2"
-                        onClick={() => deleteReview(r.reviewId)}
-                      >
+                      <button className="btn btn-danger btn-sm mt-2" onClick={() => deleteReview(r.reviewId)}>
                         삭제
                       </button>
                     </>
@@ -260,9 +251,7 @@ const BoardDetail = () => {
         </div>
       )}
 
-      {/* -------------------- */}
       {/* 댓글 영역 */}
-      {/* -------------------- */}
       <div className="mb-5">
         <h5>댓글</h5>
 
@@ -274,14 +263,9 @@ const BoardDetail = () => {
             </small>
 
             {c.userId === userId && (
-              <>
-                <button
-                  className="btn btn-danger btn-sm mt-2"
-                  onClick={() => deleteComment(c.commentId)}
-                >
-                  삭제
-                </button>
-              </>
+              <button className="btn btn-danger btn-sm mt-2" onClick={() => deleteComment(c.commentId)}>
+                삭제
+              </button>
             )}
           </div>
         ))}

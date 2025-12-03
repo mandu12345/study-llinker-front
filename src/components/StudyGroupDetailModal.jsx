@@ -20,8 +20,8 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
       try {
         // 리더 정보
         const leaderRes = await api.get(`/study-groups/${group.group_id}/leader`);
-        setLeaderId(leaderRes.data.leader_id);
-        setLeaderName(leaderRes.data.leader_name);
+        setLeaderId(leaderRes.data.userId);
+        setLeaderName(leaderRes.data.name);
 
         // 멤버 목록
         const memRes = await api.get(`/study-groups/${group.group_id}/members`);
@@ -119,15 +119,15 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
                 ) : (
                   <ul className="list-group mb-3">
                     {members.filter(m => m.status === "PENDING").map((m) => (
-                      <li key={m.member_id} className="list-group-item d-flex justify-content-between">
+                      <li key={m.memberId} className="list-group-item d-flex justify-content-between">
                         <span>{m.name}</span>
                         <div>
                           <button className="btn btn-success btn-sm me-2"
-                            onClick={() => handleApprove(m.user_id)}>
+                            onClick={() => handleApprove(m.userId)}>
                             승인
                           </button>
                           <button className="btn btn-danger btn-sm"
-                            onClick={() => handleReject(m.user_id)}>
+                            onClick={() => handleReject(m.userId)}>
                             거절
                           </button>
                         </div>
@@ -146,13 +146,13 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
             ) : (
               <ul className="list-group mb-3">
                 {members.filter(m => m.status === "APPROVED").map((m) => (
-                  <li key={m.member_id} className="list-group-item d-flex justify-content-between">
+                  <li key={m.memberId} className="list-group-item d-flex justify-content-between">
                     <span>{m.name}</span>
 
-                    {isLeader && m.user_id !== leaderId && (
+                    {isLeader && m.userId !== leaderId && (
                       <button
                         className="btn btn-outline-danger btn-sm"
-                        onClick={() => handleKick(m.member_id)}
+                        onClick={() => handleKick(m.memberId)}
                       >
                         강퇴
                       </button>
@@ -171,8 +171,8 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
             ) : (
               <ul className="list-group">
                 {schedules.map((s) => (
-                  <li key={s.schedule_id} className="list-group-item">
-                    <strong>{s.title}</strong> — {s.start_time.slice(0, 16)}
+                  <li key={s.scheduleId} className="list-group-item">
+                    <strong>{s.title}</strong> — {s.startTime.slice(0, 16)}
                   </li>
                 ))}
               </ul>
@@ -184,6 +184,7 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
               닫기
             </button>
           </div>
+
         </div>
       </div>
     </div>
