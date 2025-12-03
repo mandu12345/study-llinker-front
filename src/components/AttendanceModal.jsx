@@ -1,86 +1,187 @@
-// src/pages/components/AttendanceModal.jsx
+// src/components/AttendanceModal.jsx
 
 import React, { useEffect, useState } from "react";
 import api from "../api/axios";
 
-const AttendanceModal = ({ schedule, onClose }) => {
+/**
+ * Props
+ *  - scheduleId: 출석을 관리할 일정 ID
+ *  - onClose: 모달 닫기 콜백
+ */
+const AttendanceModal = ({ scheduleId, onClose }) => {
+  const [schedule, setSchedule] = useState(null);
   const [members, setMembers] = useState([]);
+  const [statusMap, setStatusMap] = useState({}); // userId -> status
   const [loading, setLoading] = useState(true);
 
-  // 스터디 멤버 조회
+  // ============================
+  // 초기 로딩
+  // 1) 일정 정보 조회 (groupId 얻기)
+  // 2) 그룹 멤버 조회
+  // 3) 해당 일정 출석 정보 조회
+  // ============================
   useEffect(() => {
-    const loadMembers = async () => {
-      try {
-        const res = await api.get(`/study-groups/${schedule.groupId}/members`);
-        const approved = res.data.filter((m) => m.status === "APPROVED");
-        setMembers(approved);
-      } catch (err) {
-        console.error("멤버 조회 실패:", err);
-      }
-      setLoading(false);
-    };
-    loadMembers();
-  }, [schedule.groupId]);
+    if (!scheduleId) return;
 
-  // 출석 요청
-  const markAttendance = async (userId, status) => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        // 1) 일정 단건 조회: GET /api/study-schedules/{scheduleId}
+        const scheduleRes = await api.get(`/study-schedules/${scheduleId}`);
+        const sc = scheduleRes.data;
+        setSchedule(sc);
+
+        // 그룹이 없는 개인 일정이면 출석 대상 없음
+        if (!sc.groupId) {
+          setMembers([]);
+          setStatusMap({});
+          return;
+        }
+
+        // 2) 스터디 멤버 조회: GET /api/study-groups/{groupId}/members
+        const membersRes = await api.get(
+          `/study-groups/${sc.groupId}/members`
+        );
+        // APPROVED 멤버만 출석 대상
+        const approved = (membersRes.data || []).filter(
+          (m) => m.status === "APPROVED"
+        );
+        setMembers(approved);
+
+        // 3) 기존 출석 기록 조회: GET /api/attendance/scchedule/{scheduleId}
+        //    (스펙에 나온 엔드포인트 표기 그대로 사용)
+        let attendanceMap = {};
+        try {
+          const attRes = await api.get(
+            `/attendance/scchedule/${scheduleId}`
+          );
+          (attRes.data || []).forEach((a) => {
+            const userId = a.userId ?? a.user_id;
+            if (!userId) return;
+            attendanceMap[userId] = a.status; // "PRESENT" / "ABSENT" / "LATE"
+          });
+        } catch (err) {
+          console.error("출석 목록 조회 실패(없을 수 있음):", err);
+        }
+        setStatusMap(attendanceMap);
+      } catch (err) {
+        console.error("출석 모달 데이터 로드 실패:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [scheduleId]);
+
+  // ============================
+  // 출석 상태 변경
+  // POST /api/attendance
+  // Body: { scheduleId, userId, status }
+  //  - 생성 + 갱신 모두 처리
+  // ============================
+  const handleChangeStatus = async (userId, status) => {
+    // 화면에서 먼저 반영
+    setStatusMap((prev) => ({
+      ...prev,
+      [userId]: status,
+    }));
+
     try {
       await api.post("/attendance", {
-        scheduleId: schedule.id,
+        scheduleId,
         userId,
-        status
+        status,
       });
-      alert("출석 기록 완료");
     } catch (err) {
-      console.error("출석 실패:", err);
-      alert("출석 실패");
+      console.error("출석 저장 실패:", err);
+      // 실패 시 되돌릴지 여부는 선택 사항 (지금은 콘솔만)
     }
   };
 
-  return (
-    <div className="modal d-block" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
-      <div className="modal-dialog modal-dialog-centered">
-        <div className="modal-content">
+  if (!scheduleId) return null;
 
+  return (
+    <div
+      className="modal d-block"
+      style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
+    >
+      <div className="modal-dialog modal-lg modal-dialog-centered">
+        <div className="modal-content">
+          {/* 헤더 */}
           <div className="modal-header bg-success text-white">
-            <h5 className="modal-title">{schedule.title} 출석체크</h5>
-            <button className="btn-close btn-close-white" onClick={onClose}></button>
+            <h5 className="modal-title">
+              📋 출석 관리
+              {schedule && (
+                <span className="ms-2">
+                  ({schedule.title} / 그룹 ID: {schedule.groupId ?? "개인 일정"})
+                </span>
+              )}
+            </h5>
+            <button
+              className="btn-close btn-close-white"
+              onClick={onClose}
+            ></button>
           </div>
 
+          {/* 바디 */}
           <div className="modal-body">
             {loading && <p>로딩 중...</p>}
 
-            {!loading &&
-              members.map((m) => (
-                <div key={m.user_id} className="d-flex justify-content-between align-items-center mb-2">
-                  <span>{m.name}</span>
+            {!loading && (!members || members.length === 0) && (
+              <p>출석을 관리할 멤버가 없습니다.</p>
+            )}
 
-                  <div>
-                    <button
-                      className="btn btn-sm btn-success me-1"
-                      onClick={() => markAttendance(m.user_id, "PRESENT")}
-                    >
-                      출석
-                    </button>
-                    <button
-                      className="btn btn-sm btn-warning me-1"
-                      onClick={() => markAttendance(m.user_id, "LATE")}
-                    >
-                      지각
-                    </button>
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={() => markAttendance(m.user_id, "ABSENT")}
-                    >
-                      결석
-                    </button>
-                  </div>
-                </div>
-              ))}
+            {!loading && members && members.length > 0 && (
+              <table className="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th style={{ width: "10%" }}>번호</th>
+                    <th style={{ width: "40%" }}>이름 / 닉네임</th>
+                    <th style={{ width: "50%" }}>출석 상태</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {members.map((m, idx) => {
+                    const uid = m.userId ?? m.user_id;
+                    const name =
+                      m.name || m.username || m.nickname || `user-${uid}`;
+                    const currentStatus = statusMap[uid] || "";
+
+                    return (
+                      <tr key={uid}>
+                        <td>{idx + 1}</td>
+                        <td>{name}</td>
+                        <td>
+                          <select
+                            className="form-select form-select-sm"
+                            value={currentStatus}
+                            onChange={(e) =>
+                              handleChangeStatus(uid, e.target.value)
+                            }
+                          >
+                            <option value="">선택 안 함</option>
+                            <option value="PRESENT">출석</option>
+                            <option value="ABSENT">결석</option>
+                            <option value="LATE">지각</option>
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
 
+          {/* 푸터 */}
           <div className="modal-footer">
-            <button className="btn btn-secondary btn-sm" onClick={onClose}>닫기</button>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={onClose}
+            >
+              닫기
+            </button>
           </div>
         </div>
       </div>

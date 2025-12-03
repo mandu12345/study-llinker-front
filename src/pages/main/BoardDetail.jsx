@@ -10,8 +10,6 @@ const BoardDetail = () => {
   const [post, setPost] = useState(null);
 
   const [comments, setComments] = useState([]);
-  const [editingCommentId, setEditingCommentId] = useState(null);
-  const [editCommentText, setEditCommentText] = useState("");
 
   const [reviews, setReviews] = useState([]);
   const [editingReviewId, setEditingReviewId] = useState(null);
@@ -24,27 +22,29 @@ const BoardDetail = () => {
 
   const [userId, setUserId] = useState(null);
 
-  // ================================
-  // 로그인 정보
-  // ================================
+  // -----------------------------
+  // 로그인 사용자 정보 가져오기
+  // -----------------------------
   useEffect(() => {
     api.get("/users/profile")
       .then((res) => setUserId(res.data.user_id))
       .catch(() => {});
   }, []);
 
-  // ================================
-  // 게시글 상세 + 댓글 + 리뷰 불러오기
-  // ================================
+  // -----------------------------
+  // 게시글 + 댓글 + 리뷰 불러오기
+  // -----------------------------
   useEffect(() => {
     const load = async () => {
       try {
         const res = await api.get(`/study-posts/${postId}`);
         setPost(res.data);
 
+        // 댓글 조회
         const cRes = await api.get(`/study-posts/${postId}/comments`);
         setComments(cRes.data);
 
+        // 리뷰 게시글이면 리뷰 조회
         if (res.data.type === "REVIEW") {
           const rRes = await api.get(`/study-posts/${postId}/reviews`);
           setReviews(rRes.data);
@@ -63,9 +63,9 @@ const BoardDetail = () => {
 
   const isReviewPost = post.type === "REVIEW";
 
-  // ================================
+  // -----------------------------
   // 게시글 삭제
-  // ================================
+  // -----------------------------
   const deletePost = async () => {
     if (!window.confirm("삭제하시겠습니까?")) return;
 
@@ -78,13 +78,14 @@ const BoardDetail = () => {
     }
   };
 
-  // ================================
+  // -----------------------------
   // 댓글 작성
-  // ================================
+  // -----------------------------
   const writeComment = async () => {
     if (!newComment.trim()) return;
 
     await api.post(`/study-posts/${postId}/comments`, { content: newComment });
+
     const res = await api.get(`/study-posts/${postId}/comments`);
     setComments(res.data);
     setNewComment("");
@@ -95,25 +96,13 @@ const BoardDetail = () => {
     if (!window.confirm("삭제하시겠습니까?")) return;
 
     await api.delete(`/study-posts/${postId}/comments/${cid}`);
-    setComments((prev) => prev.filter((c) => c.comment_id !== cid));
+
+    setComments((prev) => prev.filter((c) => c.commentId !== cid));
   };
 
-  // 댓글 수정 저장
-  const saveComment = async (cid) => {
-    await api.patch(`/study-posts/${postId}/comments/${cid}`, {
-      content: editCommentText,
-    });
-
-    const res = await api.get(`/study-posts/${postId}/comments`);
-    setComments(res.data);
-
-    setEditingCommentId(null);
-    setEditCommentText("");
-  };
-
-  // ================================
+  // -----------------------------
   // 후기 작성
-  // ================================
+  // -----------------------------
   const writeReview = async () => {
     if (!newReview.trim()) return;
 
@@ -132,7 +121,7 @@ const BoardDetail = () => {
     if (!window.confirm("삭제하시겠습니까?")) return;
 
     await api.delete(`/study-posts/${postId}/reviews/${rid}`);
-    setReviews((prev) => prev.filter((r) => r.review_id !== rid));
+    setReviews((prev) => prev.filter((r) => r.reviewId !== rid));
   };
 
   // 후기 수정 저장
@@ -151,16 +140,16 @@ const BoardDetail = () => {
 
   return (
     <div className="container mt-4">
-
-      <button className="btn btn-secondary mb-3"
+      <button
+        className="btn btn-secondary mb-3"
         onClick={() => navigate("/main/board")}
       >
         ← 뒤로가기
       </button>
 
-      {/* ------------------------------ */}
+      {/* -------------------- */}
       {/* 게시글 영역 */}
-      {/* ------------------------------ */}
+      {/* -------------------- */}
       <div className="card mb-4">
         <div className="card-header">
           <h4>{post.title}</h4>
@@ -174,7 +163,7 @@ const BoardDetail = () => {
             작성자: {post.leaderName || "익명"}
           </p>
 
-          {post.userId === userId && (
+          {post.leaderId === userId && (
             <>
               <button
                 className="btn btn-warning me-2"
@@ -191,17 +180,16 @@ const BoardDetail = () => {
         </div>
       </div>
 
-      {/* ------------------------------ */}
+      {/* -------------------- */}
       {/* 후기 영역 */}
-      {/* ------------------------------ */}
+      {/* -------------------- */}
       {isReviewPost && (
         <div className="mb-5">
           <h5>후기</h5>
 
           {reviews.map((r) => (
-            <div key={r.review_id} className="card p-3 mb-2">
-
-              {editingReviewId === r.review_id ? (
+            <div key={r.reviewId} className="card p-3 mb-2">
+              {editingReviewId === r.reviewId ? (
                 <>
                   <textarea
                     className="form-control"
@@ -212,7 +200,7 @@ const BoardDetail = () => {
 
                   <button
                     className="btn btn-primary btn-sm mt-2 me-2"
-                    onClick={() => saveReview(r.review_id)}
+                    onClick={() => saveReview(r.reviewId)}
                   >
                     저장
                   </button>
@@ -230,14 +218,16 @@ const BoardDetail = () => {
               ) : (
                 <>
                   <p>{r.content}</p>
-                  <small className="text-muted">{r.username}</small>
+                  <small className="text-muted">
+                    {r.userName || "익명"} • {r.createdAt}
+                  </small>
 
-                  {r.user_id === userId && (
+                  {r.userId === userId && (
                     <>
                       <button
                         className="btn btn-warning btn-sm mt-2 me-2"
                         onClick={() => {
-                          setEditingReviewId(r.review_id);
+                          setEditingReviewId(r.reviewId);
                           setEditReviewText(r.content);
                         }}
                       >
@@ -246,7 +236,7 @@ const BoardDetail = () => {
 
                       <button
                         className="btn btn-danger btn-sm mt-2"
-                        onClick={() => deleteReview(r.review_id)}
+                        onClick={() => deleteReview(r.reviewId)}
                       >
                         삭제
                       </button>
@@ -270,66 +260,27 @@ const BoardDetail = () => {
         </div>
       )}
 
-      {/* ------------------------------ */}
+      {/* -------------------- */}
       {/* 댓글 영역 */}
-      {/* ------------------------------ */}
+      {/* -------------------- */}
       <div className="mb-5">
         <h5>댓글</h5>
 
         {comments.map((c) => (
-          <div key={c.comment_id} className="card p-3 mb-2">
+          <div key={c.commentId} className="card p-3 mb-2">
+            <p>{c.content}</p>
+            <small className="text-muted">
+              {c.userName || "사용자"} • {c.createdAt}
+            </small>
 
-            {editingCommentId === c.comment_id ? (
+            {c.userId === userId && (
               <>
-                <textarea
-                  className="form-control"
-                  rows={2}
-                  value={editCommentText}
-                  onChange={(e) => setEditCommentText(e.target.value)}
-                />
-
                 <button
-                  className="btn btn-primary btn-sm mt-2 me-2"
-                  onClick={() => saveComment(c.comment_id)}
+                  className="btn btn-danger btn-sm mt-2"
+                  onClick={() => deleteComment(c.commentId)}
                 >
-                  저장
+                  삭제
                 </button>
-
-                <button
-                  className="btn btn-secondary btn-sm mt-2"
-                  onClick={() => {
-                    setEditingCommentId(null);
-                    setEditCommentText("");
-                  }}
-                >
-                  취소
-                </button>
-              </>
-            ) : (
-              <>
-                <p>{c.content}</p>
-                <small className="text-muted">{c.username}</small>
-
-                {c.user_id === userId && (
-                  <>
-                    <button
-                      className="btn btn-warning btn-sm mt-2 me-2"
-                      onClick={() => {
-                        setEditingCommentId(c.comment_id);
-                        setEditCommentText(c.content);
-                      }}
-                    >
-                      수정
-                    </button>
-
-                    <button
-                      className="btn btn-danger btn-sm mt-2"
-                      onClick={() => deleteComment(c.comment_id)}
-                    >
-                      삭제
-                    </button>
-                  </>
-                )}
               </>
             )}
           </div>

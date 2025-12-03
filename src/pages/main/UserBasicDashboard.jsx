@@ -1,59 +1,129 @@
+// src/pages/main/UserBasicDashboard.jsx
+
 import React, { useEffect, useState, useRef } from "react";
 import Chart from "chart.js/auto";
 import "react-calendar/dist/Calendar.css";
 import api from "../../api/axios";
 
 const UserBasicDashboard = () => {
+  const [userId, setUserId] = useState(null); // 🔹 userId를 상태로 관리
   const [schedules, setSchedules] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const pieChartRef = useRef(null);
   const barChartRef = useRef(null);
 
+  // --------------------------
+  //   snake_case / camelCase 대응 헬퍼
+  // --------------------------
+  const getStart = (s) => s.startTime ?? s.start_time;
+  const getEnd = (s) => s.endTime ?? s.end_time;
+  const getId = (s) => s.scheduleId ?? s.schedule_id;
 
-  const userId = Number(localStorage.getItem("userId"));
+  // --------------------------
+  //   userId 변화 감지 (localStorage 기반)
+  // --------------------------
+  useEffect(() => {
+    const detectUserId = () => {
+      const stored = localStorage.getItem("userId");
+      if (stored && Number(stored) !== userId) {
+        console.log("[Dashboard] userId 감지됨 →", stored);
+        setUserId(Number(stored));
+      }
+    };
 
-  // 1) 필요한 API만 호출
+    // 최초 체크
+    detectUserId();
+
+    // 0.3초 간격 체크
+    const interval = setInterval(detectUserId, 300);
+
+    return () => clearInterval(interval);
+  }, [userId]);
+
+  // --------------------------
+  //   실제 데이터 로딩
+  // --------------------------
   const loadData = async () => {
     try {
-      // 내 일정 조회
+      console.log("[Dashboard] 데이터 로드 시작");
+
+      // 일정 조회
       const scheduleRes = await api.get("/study-schedules/me");
-      setSchedules(scheduleRes.data);
+      console.log("[Dashboard] /study-schedules/me =", scheduleRes.data);
+      setSchedules(scheduleRes.data || []);
 
-      // 내 출석 조회
+      // 출석 조회
       const attendanceRes = await api.get(`/attendance/user/${userId}`);
-      setAttendance(attendanceRes.data);
-
+      console.log("[Dashboard] /attendance/user =", attendanceRes.data);
+      setAttendance(attendanceRes.data || []);
     } catch (err) {
-      console.error(err);
-      alert("대시보드 데이터를 불러오는 데 실패했습니다.");
+      console.error("[Dashboard] 대시보드 데이터 로드 실패:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  // --------------------------
+  //   userId 준비 후 실행
+  // --------------------------
   useEffect(() => {
-    loadData();
-  }, []);
+    if (!userId) {
+      console.log("[Dashboard] userId 없음 → loadData 실행 안 함");
+      return;
+    }
 
-  // 2) 출석 현황 계산
+    console.log("[Dashboard] userId 준비됨 → loadData 실행");
+    loadData();
+  }, [userId]);
+
+  // --------------------------------------------------------
+  //   출석 통계 / 월별 참여도 / 이번 주 일정 / 목표 달성률 계산
+  // --------------------------------------------------------
   const attendanceStats = {
     present: attendance.filter((a) => a.status === "PRESENT").length,
     late: attendance.filter((a) => a.status === "LATE").length,
     absent: attendance.filter((a) => a.status === "ABSENT").length,
   };
 
-  // 3) 월별 참여 횟수 계산
+// --------------------------------------------------------
+//   월별 참여 횟수 계산 (스터디 일정 + 출석 PRESENT/LATE 만 카운트)
+// --------------------------------------------------------
+
   const monthMap = {};
-  schedules.forEach((s) => {
-    const m = new Date(s.start_time).getMonth() + 1;
-    monthMap[m] = (monthMap[m] || 0) + 1;
+
+  // 1) 참석한 출석 데이터만 필터링
+  const attended = attendance.filter(
+    (a) => a.status === "PRESENT" || a.status === "LATE"
+  );
+
+  // 2) 참석한 일정만 월별 카운트
+  attended.forEach((att) => {
+    // 해당 attendance 의 schedule 정보 찾기
+    const schedule = schedules.find((s) => {
+      const sid = s.schedule_id ?? s.scheduleId;
+      return sid === att.schedule_id;
+    });
+
+    if (!schedule) return;
+
+    // 개인 일정 제외
+    const groupId = schedule.group_id ?? schedule.groupId;
+    if (!groupId) return;
+
+    const start = getStart(schedule);
+    if (!start) return;
+
+    const month = new Date(start).getMonth() + 1;
+    monthMap[month] = (monthMap[month] || 0) + 1;
   });
 
+  // 최종 그래프 데이터 생성
   const dynamicLabels = Object.keys(monthMap).map((m) => `${m}월`);
   const dynamicData = Object.values(monthMap);
 
-  // 4) 이번 주 날짜 계산
+
   const now = new Date();
   const startOfWeek = new Date(now);
   startOfWeek.setDate(now.getDate() - now.getDay());
@@ -64,29 +134,31 @@ const UserBasicDashboard = () => {
   endOfWeek.setHours(23, 59, 59, 999);
 
   const weeklySchedules = schedules.filter((s) => {
-    const d = new Date(s.start_time);
+    const start = getStart(s);
+    if (!start) return false;
+    const d = new Date(start);
     return d >= startOfWeek && d <= endOfWeek;
   });
 
-  // 5) 목표 달성률 계산
   const target = weeklySchedules.length;
-  const done = weeklySchedules.filter(
-    (s) => new Date(s.end_time) < new Date()
-  ).length;
+  const done = weeklySchedules.filter((s) => {
+    const end = getEnd(s);
+    if (!end) return false;
+    return new Date(end) < new Date();
+  }).length;
 
   const goalPercent = target > 0 ? (done / target) * 100 : 0;
 
-  // 6) 차트 렌더링
+  // --------------------------------------------------------
+  //   차트 렌더링
+  // --------------------------------------------------------
   useEffect(() => {
     if (loading) return;
 
+    // --- 파이 차트 (출석 비율) ---
     const ctx1 = document.getElementById("attendanceRatioChart");
     if (ctx1) {
-      // 기존 차트 제거
-      if (pieChartRef.current) {
-        pieChartRef.current.destroy();
-      }
-
+      if (pieChartRef.current) pieChartRef.current.destroy();
       pieChartRef.current = new Chart(ctx1, {
         type: "pie",
         data: {
@@ -105,13 +177,10 @@ const UserBasicDashboard = () => {
       });
     }
 
+    // --- 바 차트 (월별 참여 횟수) ---
     const ctx2 = document.getElementById("participationCountChart");
     if (ctx2) {
-      // 기존 차트 제거
-      if (barChartRef.current) {
-        barChartRef.current.destroy();
-      }
-
+      if (barChartRef.current) barChartRef.current.destroy();
       barChartRef.current = new Chart(ctx2, {
         type: "bar",
         data: {
@@ -126,8 +195,11 @@ const UserBasicDashboard = () => {
         },
       });
     }
-  }, [loading, schedules]);
+  }, [loading, schedules, attendance]);
 
+  // --------------------------------------------------------
+  //   차트 제거 (언마운트)
+  // --------------------------------------------------------
   useEffect(() => {
     return () => {
       if (pieChartRef.current) pieChartRef.current.destroy();
@@ -135,6 +207,9 @@ const UserBasicDashboard = () => {
     };
   }, []);
 
+  // --------------------------------------------------------
+  //   UI (전체 유지)
+  // --------------------------------------------------------
   return (
     <div className="container mb-4">
       <h2 className="dashboard-title text-center my-4">사용자 대시보드</h2>
@@ -147,7 +222,9 @@ const UserBasicDashboard = () => {
           <div className="row g-4">
             <div className="col-md-6">
               <div className="card">
-                <div className="card-header bg-primary text-white">출석/참여 현황</div>
+                <div className="card-header bg-primary text-white">
+                  출석/참여 현황
+                </div>
                 <div className="card-body">
                   <div className="chart-wrap" style={{ height: "320px" }}>
                     <canvas id="attendanceRatioChart"></canvas>
@@ -156,10 +233,12 @@ const UserBasicDashboard = () => {
               </div>
             </div>
 
-            {/* 월별 참여 횟수 */}
+            {/* 월별 참여 */}
             <div className="col-md-6">
               <div className="card">
-                <div className="card-header bg-success text-white">월별 참여 횟수</div>
+                <div className="card-header bg-success text-white">
+                  월별 참여 횟수
+                </div>
                 <div className="card-body">
                   <div className="chart-wrap" style={{ height: "320px" }}>
                     <canvas id="participationCountChart"></canvas>
@@ -169,40 +248,54 @@ const UserBasicDashboard = () => {
             </div>
           </div>
 
-          {/* 이번 주 일정 + 목표 달성률 */}
+          {/* 이번 주 일정 & 목표 달성률 */}
           <div className="row g-4 mt-1">
             <div className="col-lg-8">
               <div className="card">
-                <div className="card-header bg-warning text-dark">이번 주 내 스케줄</div>
+                <div className="card-header bg-warning text-dark">
+                  이번 주 내 스케줄
+                </div>
                 <div className="card-body">
                   <ul className="list-group">
                     {weeklySchedules.length > 0 ? (
-                      weeklySchedules.map((s) => (
-                        <li
-                          key={s.schedule_id}
-                          className="list-group-item d-flex justify-content-between align-items-center"
-                        >
-                          <div>
-                            <div className="fw-semibold">{s.title}</div>
-                            <div className="text-muted small">
-                              {s.start_time.slice(0, 10)} · {s.location}
-                            </div>
-                          </div>
+                      weeklySchedules.map((s) => {
+                        const start = getStart(s);
+                        const startDateStr = start
+                          ? String(start).slice(0, 10)
+                          : "-";
 
-                          <span className="badge text-bg-primary">
-                            D-
-                            {Math.max(
+                        const dday = start
+                          ? Math.max(
                               0,
                               Math.ceil(
-                                (new Date(s.start_time) - new Date()) /
+                                (new Date(start) - new Date()) /
                                   (1000 * 60 * 60 * 24)
                               )
-                            )}
-                          </span>
-                        </li>
-                      ))
+                            )
+                          : "-";
+
+                        return (
+                          <li
+                            key={getId(s)}
+                            className="list-group-item d-flex justify-content-between align-items-center"
+                          >
+                            <div>
+                              <div className="fw-semibold">{s.title}</div>
+                              <div className="text-muted small">
+                                {startDateStr} · {s.location}
+                              </div>
+                            </div>
+
+                            <span className="badge text-bg-primary">
+                              D-{dday}
+                            </span>
+                          </li>
+                        );
+                      })
                     ) : (
-                      <p className="text-muted small">이번 주 예정된 일정이 없어요.</p>
+                      <p className="text-muted small">
+                        이번 주 예정된 일정이 없어요.
+                      </p>
                     )}
                   </ul>
                 </div>
@@ -212,7 +305,9 @@ const UserBasicDashboard = () => {
             {/* 목표 달성률 */}
             <div className="col-lg-4">
               <div className="card">
-                <div className="card-header bg-info text-dark">학습 목표 달성률</div>
+                <div className="card-header bg-info text-dark">
+                  학습 목표 달성률
+                </div>
                 <div className="card-body">
                   <div className="d-flex justify-content-between align-items-end mb-2">
                     <div className="small text-muted">이번 주 목표</div>

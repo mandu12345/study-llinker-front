@@ -27,18 +27,20 @@ const StudyList = () => {
   const mapRef = useRef(null);
   const markerRef = useRef(null);
 
-  const userId = Number(localStorage.getItem("userId"));
+  const storedUserId = localStorage.getItem("userId");
+  const userId = storedUserId ? Number(storedUserId) : null;
 
+  // ⭐ 백엔드 DTO 기준 camelCase로 통일
   const [formData, setFormData] = useState({
     title: "",
     description: "",
-    max_members: 10,
+    maxMembers: 10,     // ⭐ 수정됨
     category: [],
     latitude: null,
     longitude: null,
   });
 
-  // --- 사용자 현재 위치 ---
+  // --- 유저 현재 위치 가져오기 ---
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -53,7 +55,7 @@ const StudyList = () => {
     }
   }, []);
 
-  // --- 전체 그룹 조회 API ---
+  // --- 전체 그룹 조회 ---
   const loadGroups = async () => {
     try {
       const res = await api.get("/study-groups");
@@ -68,7 +70,7 @@ const StudyList = () => {
     loadGroups();
   }, []);
 
-  // --- 생성 모달 지도 초기화 ---
+  // --- 생성 모달 지도 ---
   useEffect(() => {
     if (showForm && window.kakao && window.kakao.maps) {
       const container = document.getElementById("createMap");
@@ -105,18 +107,26 @@ const StudyList = () => {
     }
   }, [showForm, userLocation]);
 
-  // --- 스터디 생성 API ---
+  // --- 스터디 생성 ---
   const handleCreate = async (e) => {
     e.preventDefault();
 
     if (!formData.title.trim()) return alert("스터디 제목을 입력하세요.");
     if (!formData.latitude || !formData.longitude)
-      return alert("지도를 클릭해 위치를 지정해주세요.");
-    if (formData.max_members > 20)
+      return alert("지도에서 위치를 지정하세요.");
+    if (formData.maxMembers > 20)
       return alert("최대 인원은 20명 이하만 가능합니다.");
 
     try {
-      await api.post(`/study-groups?leaderId=${userId}`, formData);
+      await api.post("/study-groups", {
+        title: formData.title,
+        description: formData.description,
+        maxMembers: formData.maxMembers,   // ⭐ DTO 기준 camelCase
+        category: formData.category,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
+      });
+
       alert("스터디 생성 완료!");
       setShowForm(false);
       loadGroups();
@@ -126,7 +136,7 @@ const StudyList = () => {
     }
   };
 
-  // --- 참여 신청 API ---
+  // --- 참여 신청 ---
   const handleJoin = async (groupId) => {
     try {
       await api.post(`/study-groups/${groupId}/members`);
@@ -137,7 +147,7 @@ const StudyList = () => {
     }
   };
 
-  // --- 리더 정보 조회 API ---
+  // --- 리더 정보 조회 ---
   const fetchGroupLeader = async (groupId) => {
     try {
       const res = await api.get(`/study-groups/${groupId}/leader`);
@@ -160,7 +170,7 @@ const StudyList = () => {
     setShowModal(true);
   };
 
-  // --- 상세보기 모달 열릴 때 주소 변환  ---
+  // --- 좌표 → 주소 변환 ---
   useEffect(() => {
     if (selectedGroup && window.kakao && window.kakao.maps) {
       const geocoder = new window.kakao.maps.services.Geocoder();
@@ -184,7 +194,7 @@ const StudyList = () => {
     }
   }, [selectedGroup]);
 
-  // --- 필터 + 거리정렬 ---
+  // --- 검색 + 거리 계산 ---
   const filteredGroups = groups
     .filter((g) => {
       const term = searchTerm.toLowerCase();
@@ -220,7 +230,10 @@ const StudyList = () => {
 
       {/* 생성 버튼 */}
       <div className="text-end mb-3">
-        <button className="btn btn-success btn-sm" onClick={() => setShowForm(true)}>
+        <button
+          className="btn btn-success btn-sm"
+          onClick={() => setShowForm(true)}
+        >
           ➕ 새 스터디 생성
         </button>
       </div>
@@ -262,7 +275,7 @@ const StudyList = () => {
 
       {filteredGroups.length === 0 && <p>검색 결과가 없습니다.</p>}
 
-      {/* --- 상세보기 모달 --- */}
+      {/* 상세보기 모달 */}
       {showModal && selectedGroup && (
         <div className="modal d-block" style={{ background: "rgba(0,0,0,0.4)" }}>
           <div className="modal-dialog">
@@ -274,18 +287,15 @@ const StudyList = () => {
                   onClick={() => setShowModal(false)}
                 ></button>
               </div>
+
               <div className="modal-body">
                 <p><strong>리더:</strong> {selectedGroup.leaderName}</p>
                 <p><strong>설명:</strong> {selectedGroup.description}</p>
                 <p><strong>주소:</strong> {selectedAddress}</p>
-                <p>
-                  <strong>좌표:</strong> {selectedGroup.latitude}, {selectedGroup.longitude}
-                </p>
-                <p>
-                  <strong>인원:</strong>{" "}
-                  {selectedGroup.currentMembers}/{selectedGroup.maxMembers}
-                </p>
+                <p><strong>좌표:</strong> {selectedGroup.latitude}, {selectedGroup.longitude}</p>
+                <p><strong>인원:</strong> {selectedGroup.currentMembers}/{selectedGroup.maxMembers}</p>
               </div>
+
               <div className="modal-footer">
                 <button
                   className="btn btn-secondary btn-sm"
@@ -299,7 +309,7 @@ const StudyList = () => {
         </div>
       )}
 
-      {/* --- 생성 모달 --- */}
+      {/* 생성 모달 */}
       {showForm && (
         <div className="modal d-block" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
           <div className="modal-dialog modal-lg">
@@ -340,18 +350,18 @@ const StudyList = () => {
                   <input
                     className="form-control mb-3"
                     type="number"
-                    name="max_members"
+                    name="maxMembers"
                     placeholder="최대 인원 (최대 20)"
-                    value={formData.max_members}
+                    value={formData.maxMembers}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        max_members: Number(e.target.value),
+                        maxMembers: Number(e.target.value),
                       })
                     }
                   />
 
-                  {/* 태그 입력 */}
+                  {/* 태그 */}
                   <div className="mb-2">
                     <label className="form-label">해시태그 추가</label>
                     <input
@@ -378,7 +388,7 @@ const StudyList = () => {
                         <span
                           key={idx}
                           className="badge bg-info text-dark me-2"
-                          style={{ cursor:"pointer" }}
+                          style={{ cursor: "pointer" }}
                           onClick={() =>
                             setFormData((prev) => ({
                               ...prev,
@@ -427,7 +437,6 @@ const StudyList = () => {
                   </button>
                 </div>
               </form>
-
             </div>
           </div>
         </div>

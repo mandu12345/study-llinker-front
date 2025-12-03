@@ -21,9 +21,9 @@ const BoardWrite = ({ defaultType }) => {
   const [joinedGroups, setJoinedGroups] = useState([]);
   const [selectedGroupId, setSelectedGroupId] = useState("");
 
-  // ================================
-  // 수정 모드라면 기존 데이터 불러오기
-  // ================================
+  // ------------------------------------------------
+  // 수정 모드 → 기존 게시글 불러오기
+  // ------------------------------------------------
   useEffect(() => {
     if (!isEdit) return;
 
@@ -37,8 +37,9 @@ const BoardWrite = ({ defaultType }) => {
         setType(p.type);
 
         if (p.type === "REVIEW") {
-          setRating(p.rating || 5);
-          setSelectedGroupId(p.group_id || "");
+          setSelectedGroupId(p.groupId || "");
+          // 리뷰 평점은 리뷰 API에서 따로 관리하므로 여기선 사용 X
+          setRating(5);
         }
       } catch (err) {
         console.error("게시글 불러오기 실패:", err);
@@ -48,9 +49,9 @@ const BoardWrite = ({ defaultType }) => {
     load();
   }, [isEdit, postId]);
 
-  // ================================
-  // 후기 작성용 가입 스터디 목록 불러오기
-  // ================================
+  // ------------------------------------------------
+  // REVIEW 전용 — 가입 스터디 목록 로드
+  // ------------------------------------------------
   useEffect(() => {
     if (type !== "REVIEW" || !userId) return;
 
@@ -84,9 +85,9 @@ const BoardWrite = ({ defaultType }) => {
     loadGroups();
   }, [type, userId]);
 
-  // ================================
-  // 저장
-  // ================================
+  // ------------------------------------------------
+  // 저장 (작성 + 수정)
+  // ------------------------------------------------
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -96,44 +97,57 @@ const BoardWrite = ({ defaultType }) => {
     }
 
     try {
+      // ============================
+      // 수정 모드
+      // ============================
       if (isEdit) {
-        // ============================
-        // 수정 모드
-        // ============================
         await api.patch(`/study-posts/${postId}`, {
           title,
           content,
-          type,
+          type, // StudyPostUpdateRequest 필드
+          groupId: type === "REVIEW" ? selectedGroupId : null,
         });
 
         alert("게시글 수정 완료!");
         navigate(`/main/board/${postId}`);
-      } else {
-        // ============================
-        // 작성 모드
-        // ============================
-        const postRes = await api.post(
-          `/study-posts?leaderId=${userId}`,
-          {
-            title,
-            content,
-            type,
-            groupId: type === "REVIEW" ? selectedGroupId : null,
-          }
-        );
-
-        const newId = postRes.data?.postId;
-
-        if (type === "REVIEW") {
-          await api.post(`/study-posts/${newId}/reviews`, {
-            content,
-            rating,
-          });
-        }
-
-        alert("게시글 등록 완료!");
-        navigate(`/main/board/${newId}`);
+        return;
       }
+
+      // ============================
+      // 작성 모드 — StudyPostCreateRequest 기반
+      // ============================
+
+      const postBody = {
+        title,
+        content,
+        type, // FREE / STUDY / REVIEW
+        leaderId: userId, // DTO 필드, 백엔드에서 체크됨
+        groupId: type === "REVIEW" ? selectedGroupId : null,
+        maxMembers: 0, // FREE & REVIEW는 사용 안 함
+        studyDate: null,
+        location: null,
+        latitude: null,
+        longitude: null,
+      };
+
+      const postRes = await api.post("/study-posts", postBody);
+      const newId = postRes.data?.postId;
+
+      if (!newId) {
+        alert("게시글 생성 실패: postId 누락");
+        return;
+      }
+
+      // REVIEW → 생성 후 리뷰도 추가 생성해야 함
+      if (type === "REVIEW") {
+        await api.post(`/study-posts/${newId}/reviews`, {
+          rating,
+          content,
+        });
+      }
+
+      alert("게시글 등록 완료!");
+      navigate(`/main/board/${newId}`);
     } catch (err) {
       console.error("저장 실패:", err);
       alert("오류 발생");
@@ -167,7 +181,7 @@ const BoardWrite = ({ defaultType }) => {
           className="form-select mb-3"
           value={type}
           onChange={(e) => setType(e.target.value)}
-          disabled={isEdit} // 수정 시 변경 불가
+          disabled={isEdit} // 수정 시 게시판 변경 불가
         >
           <option value="FREE">자유게시판</option>
           <option value="REVIEW">스터디 리뷰</option>
@@ -191,6 +205,7 @@ const BoardWrite = ({ defaultType }) => {
               className="form-select mb-3"
               value={selectedGroupId}
               onChange={(e) => setSelectedGroupId(e.target.value)}
+              required
             >
               <option value="">스터디 선택</option>
 

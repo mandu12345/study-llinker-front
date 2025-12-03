@@ -52,8 +52,8 @@ const MainPage = () => {
 
   // 일정 등록 모달
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createMode, setCreateMode] = useState(null);
   const [selectedGroupId] = useState(null);
+  const [createMode, setCreateMode] = useState(null);  
 
   // 출석 모달
   const [openAttendanceModal, setOpenAttendanceModal] = useState(null);
@@ -62,63 +62,35 @@ const MainPage = () => {
   const [openDetailModal, setOpenDetailModal] = useState(false);
   const [detailScheduleId, setDetailScheduleId] = useState(null);
 
+  // 일정 수정 모달
+  const [editScheduleData, setEditScheduleData] = useState(null);
+  const [modalMode, setModalMode] = useState("create"); // "create" | "update"
+
+
   // 알림
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-
-  // 일정 새로고침
-  const reloadSchedules = async () => {
-    try {
-      const res = await api.get("/study-schedules/me");
-      const raw = res.data || [];
-
-      const groupIds = [
-        ...new Set(raw.filter((s) => s.group_id !== null).map((s) => s.group_id)),
-      ];
-
-      const groupMap = {};
-      await Promise.all(
-        groupIds.map(async (gid) => {
-          try {
-            const gRes = await api.get(`/study-groups/${gid}`);
-            groupMap[gid] = gRes.data;
-          } catch (err) {
-            console.error("그룹 단건 조회 실패:", err);
-          }
-        })
-      );
-
-      const formatted = raw.map((s) => {
-        const g = groupMap[s.group_id] || {};
-        return {
-          id: s.schedule_id,
-          title: s.title,
-          content: s.description,
-          date: new Date(s.start_time),
-          location: s.location,
-          groupId: s.group_id,
-          leaderName: g.leaderName || g.leader_id || "",
-          lat: g.latitude || null,
-          lng: g.longitude || null,
-          isJoined: true,
-        };
-      });
-
-      setSchedules(formatted);
-    } catch (err) {
-      console.error("일정 조회 실패:", err);
-    }
-  };
-
-  // 1) 로그인 사용자 정보
+  // ------------------------------
+  // 1) 로그인 사용자 정보 불러오기 (로직 변경 없음)
+  // ------------------------------
   useEffect(() => {
     const loadUser = async () => {
       try {
+        console.log("[MainPage] /users/profile 요청 시작");
         const res = await api.get("/users/profile");
-        setUserId(res.data.user_id);
+        console.log("[MainPage] /users/profile 응답:", res.data);
+
+        setUserId(res.data.userId);
         setUsername(res.data.username);
+
+        // Dashboard 등에서 userId를 localStorage로도 쓰는 경우 대비
+        localStorage.setItem("userId", res.data.userId);
+        console.log(
+          "[MainPage] userId 상태/로컬스토리지 설정 완료:",
+          res.data.userId
+        );
       } catch (err) {
         console.error("유저 정보 실패:", err);
       }
@@ -126,31 +98,76 @@ const MainPage = () => {
     loadUser();
   }, []);
 
-  // 2) 리더 여부 확인
-  useEffect(() => {
-    if (!userId) return;
+  // ------------------------------
+  // 2) 리더 여부 확인 (로직 변경 없음)
+  // ------------------------------
+  const loadSchedules = async () => {
+    try {
+      const res = await api.get("/study-schedules/me");
+      console.log("[MainPage] /study-schedules/me 응답:", res.data);
 
-    const checkLeader = async () => {
-      try {
-        const res = await api.get(
-          `/study-groups?leaderId=${userId}&page=0&size=50`
-        );
-        setIsLeader(res.data.groups?.length > 0);
-      } catch (err) {
-        console.error("리더 확인 실패:", err);
-      }
-    };
-    checkLeader();
+      const processed = await Promise.all(
+        res.data.map(async (s) => {
+          // ✅ 백엔드 DTO 기준: MyScheduleResponse (scheduleId, groupId, startTime, ...)
+          const scheduleId = s.scheduleId;
+          const groupId = s.groupId ?? null;
+
+          let group = null;
+
+          // 🔹 groupId가 있을 때만 그룹 단건 조회
+          if (groupId != null) {
+            try {
+              console.log("[MainPage] 그룹 단건 조회 요청, gid =", groupId);
+              const groupRes = await api.get(`/study-groups/${groupId}`);
+              group = groupRes.data;
+            } catch (err) {
+              console.error(
+                "[MainPage] 그룹 단건 조회 실패 (gid=" + groupId + "):",
+                err
+              );
+            }
+          } else {
+            console.log(
+              "[MainPage] 이 일정은 개인 일정이라 groupId 없음, 그룹 API 호출 스킵"
+            );
+          }
+
+          return {
+            id: scheduleId,
+            groupId,
+            title: s.title,
+            content: s.description, // DTO에는 없을 수 있지만 기존 코드 유지
+            location: s.location,
+            date: new Date(s.startTime), // ✅ MyScheduleResponse.startTime (LocalDateTime/Timestamp)
+            isJoined: true,
+            lat: group?.latitude ?? null,
+            lng: group?.longitude ?? null,
+            leaderName: group?.leaderName || "", // ✅ DTO 기준: leaderName 사용
+          };
+        })
+      );
+
+      console.log("[MainPage] 가공된 일정 데이터:", processed);
+      setSchedules(processed);
+    } catch (e) {
+      console.error("[MainPage] 일정 조회 실패:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (!userId) {
+      console.log("[MainPage] 일정 조회 생략: userId 없음");
+      return;
+    }
+    console.log("[MainPage] 일정 조회 시작 (userId:", userId, ")");
+    loadSchedules();
   }, [userId]);
 
-  // 3) 내 일정 조회
+  // ------------------------------
+  // 4) 지도 초기화 (Kakao Map)
+  // ------------------------------
   useEffect(() => {
-    if (userId) reloadSchedules();
-  }, [userId]);
-
-  // ⛳ 4) 지도 생성 — 최초 1회만
-  useEffect(() => {
-    if (!window.kakao || !window.kakao.maps) return;
+    if (!window.kakao || mapRef.current) return;
 
     window.kakao.maps.load(() => {
       const container = document.getElementById("map");
@@ -175,7 +192,10 @@ const MainPage = () => {
     if (userLocation) {
       const marker = new window.kakao.maps.Marker({
         map: mapRef.current,
-        position: new window.kakao.maps.LatLng(userLocation.lat, userLocation.lng),
+        position: new window.kakao.maps.LatLng(
+          userLocation.lat,
+          userLocation.lng
+        ),
       });
       markersRef.current.push(marker);
       mapRef.current.setCenter(
@@ -225,7 +245,9 @@ const MainPage = () => {
       s.date.getDate() === selectedDate.getDate()
   );
 
+  // ------------------------------
   // 알림 조회
+  // ------------------------------  
   useEffect(() => {
     if (!userId) return;
 
@@ -236,7 +258,7 @@ const MainPage = () => {
           id: n.notification_id,
           message: n.message,
           type: n.type,
-          isRead: n.isRead,
+          isRead: n.is_read, // ✅ DTO 필드명 is_read 기준으로 매핑
         }));
         setNotifications(mapped);
       } catch (err) {
@@ -245,16 +267,34 @@ const MainPage = () => {
     };
 
     loadNotifications();
-    loadUnreadCount();   // ★ 읽지 않은 알림 갱신
 
+    // 읽지 않은 알림 개수
+    loadUnreadCount();
   }, [userId]);
 
-  const markAsRead = async (id) => {
+  // 읽지 않은 알림 수만
+  const loadUnreadCount = async () => {
+    try {
+      const res = await api.get("/notifications/unread");
+      setUnreadCount(res.data.length || 0); // unread 배열 길이
+    } catch (err) {
+      console.error("읽지 않은 알림 로딩 실패:", err);
+    }
+  };
+
+  // 알림 읽음 처리
+    const markAsRead = async (id) => {
     try {
       await api.patch(`/notifications/${id}/read`);
-
       setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+        prev.map((n) =>
+          n.id === id
+            ? {
+                ...n,
+                isRead: true,
+              }
+            : n
+        )
       );
 
       setUnreadCount((prev) => Math.max(prev - 1, 0));
@@ -269,42 +309,34 @@ const MainPage = () => {
 
     try {
       await api.delete(`/notifications/${id}`);
-      setNotifications(prev => prev.filter(n => n.id !== id));
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
 
       // unread 상태였으면 감소
-      const target = notifications.find(n => n.id === id);
+      const target = notifications.find((n) => n.id === id);
       if (target && !target.isRead) {
-        setUnreadCount(prev => Math.max(prev - 1, 0));
+        setUnreadCount((prev) => Math.max(prev - 1, 0));
       }
     } catch (err) {
       console.error("알림 삭제 실패:", err);
     }
   };
 
-
   // 모든 알림 삭제
   const deleteAllNotifications = async () => {
     if (!window.confirm("모든 알림을 삭제하시겠습니까?")) return;
 
     try {
-      await api.delete(`/notifications/all`);
+      await api.delete("/notifications/all");
       setNotifications([]);
       setUnreadCount(0);
     } catch (err) {
-      console.error("전체 알림 삭제 실패:", err);
+      console.error("알림 전체 삭제 실패:", err);
     }
   };
 
-  // 읽지 않은 알림 불러오기
-  const loadUnreadCount = async () => {
-    try {
-      const res = await api.get("/notifications/unread");
-      setUnreadCount(res.data.length || 0);  // unread 배열 길이
-    } catch (err) {
-      console.error("읽지 않은 알림 로딩 실패:", err);
-    }
-  };
-
+  // ------------------------------
+  // UI
+  // ------------------------------
   return (
     <div className="mainpage-wrapper">
       {/* NAVBAR */}
@@ -461,7 +493,7 @@ const MainPage = () => {
 
                     {/* 사용자 대시보드 */}
                     <div className="mt-4">
-                      <UserBasicDashboard />
+                      <UserBasicDashboard currentUserId={userId} />
                     </div>
                   </div>
                 }
@@ -481,24 +513,46 @@ const MainPage = () => {
         </div>
       </div>
 
-      {/* 일정 등록 모달 */}
+      {/* 일정 생성 모달 */}
       {showCreateModal && (
         <ScheduleCreateModal
-          mode={createMode}
+          mode={modalMode}                       // ← 수정 모드 반영
           groupId={selectedGroupId}
-          baseDate={selectedDate.toISOString().slice(0, 10)}
+          baseDate={
+            modalMode === "update"
+              ? null 
+              : selectedDate.toISOString().slice(0, 10)
+          }
+          scheduleData={editScheduleData}        // ← ★ 핵심! 반드시 넘겨야 함 ★
           onClose={() => setShowCreateModal(false)}
           onSuccess={() => {
             setShowCreateModal(false);
-            reloadSchedules();
+            loadSchedules();
           }}
         />
       )}
+      {/* 일정 상세 모달 */}
+      {openDetailModal && detailScheduleId && (
+        <ScheduleDetailModal
+          scheduleId={detailScheduleId}
+          userId={userId}
+          onClose={(mode, schedule) => {
+            setOpenDetailModal(false);
 
-      {/* 출석 체크 모달 */}
+            if (mode === "update") {
+              console.log("수정할 schedule:", schedule);
+              setEditScheduleData(schedule);               // 수정할 데이터 저장
+              setModalMode("update");                      // 수정 모드 설정
+              setCreateMode(schedule.group_id ? "study" : "personal");
+              setShowCreateModal(true);
+            }
+          }}
+        />
+      )}
+      {/* 출석 모달 */}
       {openAttendanceModal && (
         <AttendanceModal
-          schedule={openAttendanceModal}
+          scheduleId={openAttendanceModal}
           onClose={() => setOpenAttendanceModal(null)}
         />
       )}
@@ -565,18 +619,6 @@ const MainPage = () => {
             </div>
           </div>
         </div>
-      )}
-
-      {/* 일정 상세 모달 */}
-      {openDetailModal && (
-        <ScheduleDetailModal
-          scheduleId={detailScheduleId}
-          userId={userId}
-          onClose={(reload = false) => {
-            setOpenDetailModal(false);
-            if (reload) reloadSchedules();
-          }}
-        />
       )}
     </div>
   );
