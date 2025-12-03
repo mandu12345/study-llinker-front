@@ -25,7 +25,24 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
 
         // 멤버 목록
         const memRes = await api.get(`/study-groups/${group.group_id}/members`);
-        setMembers(memRes.data);
+        let memList = memRes.data;
+
+        // 각 멤버별 매너점수 추가
+        memList = await Promise.all(
+          memList.map(async (m) => {
+            try {
+              const mannerRes = await api.get(`/manners/${m.userId}`);
+              return {
+                ...m,
+                mannerScore: mannerRes.data?.currentMannerScore ?? 0,
+              };
+            } catch {
+              return { ...m, mannerScore: 0 };
+            }
+          })
+        );
+
+        setMembers(memList);
 
         // 일정 목록
         const schRes = await api.get(`/study-groups/${group.group_id}/schedules`);
@@ -120,7 +137,12 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
                   <ul className="list-group mb-3">
                     {members.filter(m => m.status === "PENDING").map((m) => (
                       <li key={m.memberId} className="list-group-item d-flex justify-content-between">
-                        <span>{m.name}</span>
+                        <span>
+                          {m.name}  
+                          <span className="badge bg-warning text-dark ms-2">
+                            매너 {m.mannerScore}점
+                          </span>
+                        </span>
                         <div>
                           <button className="btn btn-success btn-sm me-2"
                             onClick={() => handleApprove(m.userId)}>

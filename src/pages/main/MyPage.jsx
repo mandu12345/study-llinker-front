@@ -35,9 +35,29 @@ const MyPage = () => {
   // 2) 참여 그룹 조회
   const fetchJoinedGroups = async (userId) => {
     try {
-      const res = await api.get(`/users/${userId}/groups`);
-      console.log("📌 참여 그룹 응답:", res.data);
-      setJoinedGroups(res.data);
+      const allGroupsRes = await api.get("/study-groups");
+      const groups = allGroupsRes.data || [];
+
+      const myGroups = [];
+
+      for (const g of groups) {
+        try {
+          const memRes = await api.get(
+            `/study-groups/${g.groupId}/members/${userId}`
+          );
+          if (memRes.data && memRes.data.status === "APPROVED") {
+            myGroups.push({
+              ...g,
+              status: memRes.data.status,
+              leaderName: memRes.data.leaderName || g.leaderName,
+            });
+          }
+        } catch (err) {
+          // 가입 안된 그룹 → 무시
+        }
+      }
+
+      setJoinedGroups(myGroups);
     } catch (err) {
       console.error("참여 그룹 조회 오류:", err);
     }
@@ -223,9 +243,13 @@ const MyPage = () => {
                   className="list-group-item d-flex justify-content-between align-items-center"
                   style={{ cursor: "pointer" }}
                   onClick={() => {
-                    setSelectedGroup(g);
+                    setSelectedGroup({
+                      ...g,
+                      group_id: g.groupId,   // 🔹 DetailModal용 필드 추가
+                    });
                     setShowGroupModal(true);
                   }}
+                  
                 >
                   <div>
                     <strong>{g.title}</strong>
@@ -267,6 +291,7 @@ const MyPage = () => {
       {showGroupModal && selectedGroup && (
         <StudyGroupDetailModal
           group={selectedGroup}
+          userId={userInfo.userId}   // ★ 리더 여부 판단을 위해 필수
           onClose={() => {
             setShowGroupModal(false);
             setSelectedGroup(null);

@@ -16,14 +16,13 @@ const BoardWrite = ({ defaultType }) => {
   const [content, setContent] = useState("");
   const [type, setType] = useState(defaultType || "FREE");
 
-  // REVIEW 전용
   const [rating, setRating] = useState(0);
   const [joinedGroups, setJoinedGroups] = useState([]);
   const [selectedGroupId, setSelectedGroupId] = useState("");
 
-  // ------------------------------------------------
-  // 수정 모드 → 기존 게시글 불러오기
-  // ------------------------------------------------
+  // ============================
+  // 기존 게시글 불러오기 (수정 모드)
+  // ============================
   useEffect(() => {
     if (!isEdit) return;
 
@@ -38,7 +37,6 @@ const BoardWrite = ({ defaultType }) => {
 
         if (p.type === "REVIEW") {
           setSelectedGroupId(p.groupId || "");
-          // 리뷰 평점은 리뷰 API에서 따로 관리하므로 여기선 사용 X
           setRating(5);
         }
       } catch (err) {
@@ -49,9 +47,9 @@ const BoardWrite = ({ defaultType }) => {
     load();
   }, [isEdit, postId]);
 
-  // ------------------------------------------------
-  // REVIEW 전용 — 가입 스터디 목록 로드
-  // ------------------------------------------------
+  // ============================
+  // 리뷰 작성: 가입한 스터디 불러오기
+  // ============================
   useEffect(() => {
     if (type !== "REVIEW" || !userId) return;
 
@@ -64,16 +62,11 @@ const BoardWrite = ({ defaultType }) => {
 
         for (const g of groups) {
           try {
-            const memRes = await api.get(
-              `/study-groups/${g.groupId}/members/${userId}`
-            );
-
+            const memRes = await api.get(`/study-groups/${g.groupId}/members/${userId}`);
             if (memRes.data?.status === "APPROVED") {
               myGroups.push(g);
             }
-          } catch (err) {
-            // 가입 안 된 스터디는 무시
-          }
+          } catch {}
         }
 
         setJoinedGroups(myGroups);
@@ -85,9 +78,9 @@ const BoardWrite = ({ defaultType }) => {
     loadGroups();
   }, [type, userId]);
 
-  // ------------------------------------------------
+  // ============================
   // 저장 (작성 + 수정)
-  // ------------------------------------------------
+  // ============================
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -97,33 +90,28 @@ const BoardWrite = ({ defaultType }) => {
     }
 
     try {
-      // ============================
-      // 수정 모드
-      // ============================
+      // -------- 수정 모드 --------
       if (isEdit) {
         await api.patch(`/study-posts/${postId}`, {
           title,
           content,
-          type, // StudyPostUpdateRequest 필드
+          type,
           groupId: type === "REVIEW" ? selectedGroupId : null,
         });
 
         alert("게시글 수정 완료!");
-        navigate(`/main/board/${postId}`);
+        navigate(`/main/board/detail/${postId}`);
         return;
       }
 
-      // ============================
-      // 작성 모드 — StudyPostCreateRequest 기반
-      // ============================
-
+      // -------- 작성 모드 --------
       const postBody = {
         title,
         content,
-        type, // FREE / STUDY / REVIEW
-        leaderId: userId, // DTO 필드, 백엔드에서 체크됨
+        type,
+        leaderId: userId,
         groupId: type === "REVIEW" ? selectedGroupId : null,
-        maxMembers: 0, // FREE & REVIEW는 사용 안 함
+        maxMembers: 0,
         studyDate: null,
         location: null,
         latitude: null,
@@ -138,7 +126,6 @@ const BoardWrite = ({ defaultType }) => {
         return;
       }
 
-      // REVIEW → 생성 후 리뷰도 추가 생성해야 함
       if (type === "REVIEW") {
         await api.post(`/study-posts/${newId}/reviews`, {
           rating,
@@ -147,7 +134,7 @@ const BoardWrite = ({ defaultType }) => {
       }
 
       alert("게시글 등록 완료!");
-      navigate(`/main/board/${newId}`);
+      navigate(`/main/board/detail/${newId}`);
     } catch (err) {
       console.error("저장 실패:", err);
       alert("오류 발생");
@@ -159,7 +146,6 @@ const BoardWrite = ({ defaultType }) => {
       <h3>{isEdit ? "게시글 수정" : "게시글 작성"}</h3>
 
       <form onSubmit={handleSubmit}>
-        {/* 제목 */}
         <input
           className="form-control mb-3"
           placeholder="제목"
@@ -167,7 +153,6 @@ const BoardWrite = ({ defaultType }) => {
           onChange={(e) => setTitle(e.target.value)}
         />
 
-        {/* 내용 */}
         <textarea
           className="form-control mb-3"
           rows="6"
@@ -176,18 +161,16 @@ const BoardWrite = ({ defaultType }) => {
           onChange={(e) => setContent(e.target.value)}
         />
 
-        {/* 게시판 종류 */}
         <select
           className="form-select mb-3"
           value={type}
           onChange={(e) => setType(e.target.value)}
-          disabled={isEdit} // 수정 시 게시판 변경 불가
+          disabled={isEdit}
         >
           <option value="FREE">자유게시판</option>
           <option value="REVIEW">스터디 리뷰</option>
         </select>
 
-        {/* REVIEW 전용 UI */}
         {type === "REVIEW" && (
           <>
             <label className="form-label">평점 (1~5)</label>
@@ -208,7 +191,6 @@ const BoardWrite = ({ defaultType }) => {
               required
             >
               <option value="">스터디 선택</option>
-
               {joinedGroups.map((g) => (
                 <option key={g.groupId} value={g.groupId}>
                   {g.title}

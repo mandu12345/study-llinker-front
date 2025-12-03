@@ -1,8 +1,7 @@
 // src/pages/main/Board.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
-import { useContext } from "react";
 import { AuthContext } from "../../auth/AuthContext";
 
 const Board = () => {
@@ -12,35 +11,48 @@ const Board = () => {
   const [keyword, setKeyword] = useState("");
   const { user } = useContext(AuthContext);
 
-  // 후기 작성 관련 (기존)
-  const [rating, setRating] = useState(0);
-  const [content, setContent] = useState("");
-
-  // 댓글 입력값 → postId별로 독립 관리 ⭐⭐⭐
   const [newComment, setNewComment] = useState({});
-
-  // 댓글 목록 저장
-  const [comments, setComments] = useState({}); // postId -> comment list
-
-  // 리뷰 평점
+  const [comments, setComments] = useState({});
   const [reviewRatings, setReviewRatings] = useState({});
 
   const navigate = useNavigate();
 
-  // 게시글 전체 조회
-  const fetchPosts = async (currentTab = tab) => {
+  // =============================
+  // 🔹 게시글 전체 조회
+  // =============================
+  const fetchPosts = async (targetTab = tab) => {
     try {
       const res = await api.get("/study-posts");
       const list = Array.isArray(res.data) ? res.data : [];
 
       setAllPosts(list);
-      setPosts(list.filter((p) => p.type === currentTab));
+      setPosts(list.filter((p) => p.type === targetTab));
+
+      if (targetTab === "REVIEW") {
+        fetchReviewRatings(list);
+      }
     } catch (err) {
       console.error("게시글 조회 실패:", err);
     }
   };
 
-  // 댓글 전체 조회
+  // =============================
+  // ⭐ 최초 렌더링 시 게시판 로딩
+  // =============================
+  useEffect(() => {
+    if (user) fetchPosts("FREE");
+  }, [user]);
+
+  // =============================
+  // 🔹 탭 변경 시 재조회
+  // =============================
+  useEffect(() => {
+    if (user) fetchPosts(tab);
+  }, [tab, user]);
+
+  // =============================
+  // 🔹 댓글 조회
+  // =============================
   const fetchComments = async (postId) => {
     try {
       const res = await api.get(`/study-posts/${postId}/comments`);
@@ -50,10 +62,12 @@ const Board = () => {
     }
   };
 
-  // 리뷰 평점 조회
-  const fetchReviewRatings = async (postsForCalc) => {
+  // =============================
+  // 🔹 리뷰 평점 조회
+  // =============================
+  const fetchReviewRatings = async (list) => {
     try {
-      const reviewPosts = postsForCalc.filter((p) => p.type === "REVIEW");
+      const reviewPosts = list.filter((p) => p.type === "REVIEW");
       const ratingMap = {};
 
       for (const p of reviewPosts) {
@@ -70,9 +84,7 @@ const Board = () => {
           } else {
             ratingMap[p.postId] = { avg: null, count: 0 };
           }
-        } catch (err) {
-          console.error("리뷰 조회 실패:", err);
-        }
+        } catch {}
       }
 
       setReviewRatings(ratingMap);
@@ -81,30 +93,9 @@ const Board = () => {
     }
   };
 
-  // 탭 변경 시 게시글 재조회
-  useEffect(() => {
-    if (!user) return;
-
-    const load = async () => {
-      try {
-        const res = await api.get("/study-posts");
-        const list = Array.isArray(res.data) ? res.data : [];
-
-        setAllPosts(list);
-
-        const filtered = list.filter((p) => p.type === tab);
-        setPosts(filtered);
-
-        if (tab === "REVIEW") fetchReviewRatings(list);
-      } catch (err) {
-        console.error("게시글 조회 실패:", err);
-      }
-    };
-
-    load();
-  }, [tab, user]);
-
-  // 검색 기능
+  // =============================
+  // 🔹 검색
+  // =============================
   const handleSearch = () => {
     if (keyword.length < 2) {
       alert("검색어는 2자 이상 입력하세요.");
@@ -123,20 +114,19 @@ const Board = () => {
     setPosts(filtered);
   };
 
-  // 댓글 등록 (postId별로 입력값 사용)
+  // =============================
+  // 🔹 댓글 등록
+  // =============================
   const handleAddComment = async (postId) => {
     const text = newComment[postId] || "";
     if (!text.trim()) return;
 
     try {
-      await api.post(`/study-posts/${postId}/comments`, {
-        content: text,
-      });
+      await api.post(`/study-posts/${postId}/comments`, { content: text });
 
-      // 입력창 초기화(해당 게시물만)
       setNewComment((prev) => ({ ...prev, [postId]: "" }));
-
       await fetchComments(postId);
+
       alert("댓글 등록 완료");
     } catch (err) {
       console.error(err);
@@ -144,7 +134,9 @@ const Board = () => {
     }
   };
 
-  // 댓글 삭제
+  // =============================
+  // 🔹 댓글 삭제
+  // =============================
   const handleDeleteComment = async (postId, commentId) => {
     try {
       await api.delete(`/study-posts/${postId}/comments/${commentId}`);
@@ -155,7 +147,9 @@ const Board = () => {
     }
   };
 
-  // 게시글 신고
+  // =============================
+  // 🔹 신고
+  // =============================
   const handleReport = async (postId) => {
     const reason = prompt("신고 사유를 입력하세요");
     if (!reason) return;
@@ -225,7 +219,12 @@ const Board = () => {
               <li key={p.postId} className="list-group-item mb-2">
                 <div className="d-flex justify-content-between">
                   <div>
-                    <h5>{p.title}</h5>
+                    <h5
+                      style={{ cursor: "pointer", color: "#0d6efd" }}
+                      onClick={() => navigate(`/main/board/detail/${p.postId}`)}
+                    >
+                      {p.title}
+                    </h5>
 
                     {tab === "REVIEW" && ratingInfo && ratingInfo.avg && (
                       <p>
@@ -270,13 +269,16 @@ const Board = () => {
                         className="list-group-item d-flex justify-content-between"
                       >
                         <span>
-                          <strong>{c.userName || `사용자 ${c.userId}`}</strong>: {c.content}
+                          <strong>{c.userName || `사용자 ${c.userId}`}</strong>:{" "}
+                          {c.content}
                           <br />
                           <small className="text-muted">{c.createdAt}</small>
                         </span>
                         <button
                           className="btn btn-sm btn-outline-danger"
-                          onClick={() => handleDeleteComment(p.postId, c.commentId)}
+                          onClick={() =>
+                            handleDeleteComment(p.postId, c.commentId)
+                          }
                         >
                           삭제
                         </button>
@@ -284,7 +286,7 @@ const Board = () => {
                     ))}
                   </ul>
 
-                  {/* 댓글 입력창 — postId별로 독립 */}
+                  {/* 댓글 입력 */}
                   <div className="input-group">
                     <input
                       className="form-control"

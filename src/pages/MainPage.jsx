@@ -519,15 +519,29 @@ const MainPage = () => {
                 }
               />
 
-              <Route path="list" element={<StudyList />} />
-              <Route path="recommend" element={<RecommendGroups />} />
-              <Route path="board" element={<Board />} />
-              <Route path="board/write" element={<BoardWrite />} />
-              <Route path="mypage" element={<MyPage />} />
-              <Route path="edit-profile" element={<EditProfile />} />
-              <Route path="board/:postId" element={<BoardDetail />} />
-              <Route path="board/edit/:postId" element={<BoardWrite />} />
+                {/* 스터디 목록 */}
+                <Route path="list" element={<StudyList />} />
 
+                {/* 추천 그룹 */}
+                <Route path="recommend" element={<RecommendGroups />} />
+
+                {/* 게시판 목록 */}
+                <Route path="board" element={<Board />} />
+
+                {/* 게시글 작성 */}
+                <Route path="board/write" element={<BoardWrite />} />
+
+                {/* 게시글 상세 */}
+                <Route path="board/detail/:postId" element={<BoardDetail />} />
+
+                {/* 게시글 수정 */}
+                <Route path="board/edit/:postId" element={<BoardWrite />} />
+
+                {/* 마이페이지 */}
+                <Route path="mypage" element={<MyPage />} />
+
+                {/* 프로필 수정 */}
+                <Route path="edit-profile" element={<EditProfile />} />
             </Routes>
           </div>
         </div>
