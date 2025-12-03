@@ -16,14 +16,12 @@ import Board from "./main/Board";
 import BoardWrite from "./main/BoardWrite";
 import MyPage from "./main/MyPage";
 import EditProfile from "./main/EditProfile";
+import BoardDetail from "./main/BoardDetail";
 
-// 새 컴포넌트들
-import ScheduleCard from "./main/ScheduleCard";
-import {
-  CreateLeaderScheduleModal,
-  CreateUserScheduleModal,
-} from "./main/ScheduleModals";
-import AttendanceModal from "./main/AttendanceModal";
+// 모달들
+import ScheduleCreateModal from "../components/ScheduleCreateModal";
+import AttendanceModal from "../components/AttendanceModal";
+import ScheduleDetailModal from "../components/ScheduleDetailModal";
 
 const sidebarStyles = {
   link: {
@@ -52,17 +50,30 @@ const MainPage = () => {
   const mapRef = useRef(null);
   const markersRef = useRef([]);
 
-  // 모달
-  const [openLeaderModal, setOpenLeaderModal] = useState(false);
-  const [openUserModal, setOpenUserModal] = useState(false);
+  // 일정 등록 모달
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedGroupId] = useState(null);
+  const [createMode, setCreateMode] = useState(null);  
+
+  // 출석 모달
   const [openAttendanceModal, setOpenAttendanceModal] = useState(null);
+
+  // 일정 상세 모달
+  const [openDetailModal, setOpenDetailModal] = useState(false);
+  const [detailScheduleId, setDetailScheduleId] = useState(null);
+
+  // 일정 수정 모달
+  const [editScheduleData, setEditScheduleData] = useState(null);
+  const [modalMode, setModalMode] = useState("create"); // "create" | "update"
+
 
   // 알림
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // ------------------------------
-  // 1) 로그인 사용자 정보 불러오기
+  // 1) 로그인 사용자 정보 불러오기 (로직 변경 없음)
   // ------------------------------
   useEffect(() => {
     const loadUser = async () => {
@@ -74,196 +85,148 @@ const MainPage = () => {
         setUserId(res.data.userId);
         setUsername(res.data.username);
 
-        // ✅ 반드시 추가 (Dashboard에서 localStorage 쓰는 경우를 위해)
+        // Dashboard 등에서 userId를 localStorage로도 쓰는 경우 대비
         localStorage.setItem("userId", res.data.userId);
         console.log(
           "[MainPage] userId 상태/로컬스토리지 설정 완료:",
           res.data.userId
         );
       } catch (err) {
-        console.error("[MainPage] 유저 정보 실패:", err);
+        console.error("유저 정보 실패:", err);
       }
     };
     loadUser();
   }, []);
 
   // ------------------------------
-  // 2) 리더 여부 확인
+  // 2) 리더 여부 확인 (로직 변경 없음)
   // ------------------------------
-  useEffect(() => {
-    if (!userId) {
-      console.log("[MainPage] 리더 여부 확인 생략: userId 없음");
-      return;
+  const loadSchedules = async () => {
+    try {
+      const res = await api.get("/study-schedules/me");
+      console.log("[MainPage] /study-schedules/me 응답:", res.data);
+
+      const processed = await Promise.all(
+        res.data.map(async (s) => {
+          // ✅ 백엔드 DTO 기준: MyScheduleResponse (scheduleId, groupId, startTime, ...)
+          const scheduleId = s.scheduleId;
+          const groupId = s.groupId ?? null;
+
+          let group = null;
+
+          // 🔹 groupId가 있을 때만 그룹 단건 조회
+          if (groupId != null) {
+            try {
+              console.log("[MainPage] 그룹 단건 조회 요청, gid =", groupId);
+              const groupRes = await api.get(`/study-groups/${groupId}`);
+              group = groupRes.data;
+            } catch (err) {
+              console.error(
+                "[MainPage] 그룹 단건 조회 실패 (gid=" + groupId + "):",
+                err
+              );
+            }
+          } else {
+            console.log(
+              "[MainPage] 이 일정은 개인 일정이라 groupId 없음, 그룹 API 호출 스킵"
+            );
+          }
+
+          return {
+            id: scheduleId,
+            groupId,
+            title: s.title,
+            content: s.description, // DTO에는 없을 수 있지만 기존 코드 유지
+            location: s.location,
+            date: new Date(s.startTime), // ✅ MyScheduleResponse.startTime (LocalDateTime/Timestamp)
+            isJoined: true,
+            lat: group?.latitude ?? null,
+            lng: group?.longitude ?? null,
+            leaderName: group?.leaderName || "", // ✅ DTO 기준: leaderName 사용
+          };
+        })
+      );
+
+      console.log("[MainPage] 가공된 일정 데이터:", processed);
+      setSchedules(processed);
+    } catch (e) {
+      console.error("[MainPage] 일정 조회 실패:", e);
     }
+  };
 
-    const checkLeader = async () => {
-      try {
-        console.log("[MainPage] 리더 여부 확인 요청, userId =", userId);
-        const res = await api.get(
-          `/study-groups?leaderId=${userId}&page=0&size=50`
-        );
-        console.log("[MainPage] 리더 여부 확인 응답:", res.data);
-        setIsLeader(res.data.groups?.length > 0);
-      } catch (err) {
-        console.error("[MainPage] 리더 확인 실패:", err);
-      }
-    };
-    checkLeader();
-  }, [userId]);
-
-  // ------------------------------
-  // 3) 내 일정 조회
-  // ------------------------------
   useEffect(() => {
     if (!userId) {
       console.log("[MainPage] 일정 조회 생략: userId 없음");
       return;
     }
-
-    const loadSchedules = async () => {
-      try {
-        console.log("[MainPage] /study-schedules/me 요청 시작");
-        const res = await api.get("/study-schedules/me");
-        const raw = res.data || [];
-        console.log("[MainPage] /study-schedules/me 응답:", raw);
-
-        // group_id 모으기
-        const groupIds = [
-          ...new Set(
-            raw
-              .filter((s) => s.group_id !== null)
-              .map((s) => s.group_id)
-          ),
-        ];
-        console.log("[MainPage] groupIds:", groupIds);
-
-        // 그룹 단건 조회
-        const groupMap = {};
-        await Promise.all(
-          groupIds.map(async (gid) => {
-            try {
-              console.log("[MainPage] /study-groups/" + gid + " 요청");
-              const gRes = await api.get(`/study-groups/${gid}`);
-              groupMap[gid] = gRes.data;
-            } catch (err) {
-              console.error(
-                "[MainPage] 그룹 단건 조회 실패 (gid=" + gid + "):",
-                err
-              );
-            }
-          })
-        );
-
-        // 일정 가공
-        const formatted = raw.map((s) => {
-          const g = groupMap[s.group_id] || {};
-          return {
-            id: s.schedule_id,
-            title: s.title,
-            content: s.description,
-            date: new Date(s.start_time),
-            location: s.location,
-            groupId: s.group_id,
-            leaderName: g.leaderName || g.leader_id || "",
-            lat: g.latitude || null,
-            lng: g.longitude || null,
-            isJoined: true,
-          };
-        });
-
-        console.log("[MainPage] 가공된 일정 데이터:", formatted);
-        setSchedules(formatted);
-      } catch (err) {
-        console.error("[MainPage] 일정 조회 실패:", err);
-      }
-    };
-
+    console.log("[MainPage] 일정 조회 시작 (userId:", userId, ")");
     loadSchedules();
   }, [userId]);
 
   // ------------------------------
-  // 4) 지도 렌더링 (HOME일 때만)
+  // 4) 지도 초기화 (Kakao Map)
   // ------------------------------
   useEffect(() => {
-    if (location.pathname !== "/main") return;
-    if (!window.kakao || !window.kakao.maps) return;
-
-    console.log(
-      "[MainPage] 카카오맵 렌더링, userLocation =",
-      userLocation,
-      ", schedules.length =",
-      schedules.length
-    );
+    if (!window.kakao || mapRef.current) return;
 
     window.kakao.maps.load(() => {
       const container = document.getElementById("map");
       if (!container) return;
 
-      container.innerHTML = ""; // 지도 초기화 ★ 중요
-
-      // 지도 생성
-      const map = new window.kakao.maps.Map(container, {
-        center: new window.kakao.maps.LatLng(
-          userLocation?.lat || 37.5665,
-          userLocation?.lng || 126.978
-        ),
+      mapRef.current = new window.kakao.maps.Map(container, {
+        center: new window.kakao.maps.LatLng(37.5665, 126.9780),
         level: 6,
       });
-
-      mapRef.current = map;
-
-      // 기존 마커 삭제
-      markersRef.current.forEach((m) => m.setMap(null));
-      markersRef.current = [];
-
-      // 사용자 위치 마커
-      if (userLocation) {
-        const userMarker = new window.kakao.maps.Marker({
-          map,
-          position: new window.kakao.maps.LatLng(
-            userLocation.lat,
-            userLocation.lng
-          ),
-        });
-        markersRef.current.push(userMarker);
-      }
-
-      // 스터디 마커
-      schedules.forEach((s) => {
-        if (!s.lat || !s.lng) return;
-
-        const marker = new window.kakao.maps.Marker({
-          map,
-          position: new window.kakao.maps.LatLng(s.lat, s.lng),
-        });
-        markersRef.current.push(marker);
-
-        const info = new window.kakao.maps.InfoWindow({
-          content: `<div style="padding:5px;font-size:12px;">${s.title}</div>`,
-        });
-
-        window.kakao.maps.event.addListener(marker, "click", () =>
-          info.open(map, marker)
-        );
-      });
     });
-  }, [location.pathname, schedules, userLocation]);
+  }, []);
 
-  // 현재 사용자 위치 가져오기
+  // ⛳ 5) 마커 갱신 — 위치 or 일정 바뀔 때만
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // 기존 마커 제거
+    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current = [];
+
+    // 사용자 위치 마커
+    if (userLocation) {
+      const marker = new window.kakao.maps.Marker({
+        map: mapRef.current,
+        position: new window.kakao.maps.LatLng(
+          userLocation.lat,
+          userLocation.lng
+        ),
+      });
+      markersRef.current.push(marker);
+      mapRef.current.setCenter(
+        new window.kakao.maps.LatLng(userLocation.lat, userLocation.lng)
+      );
+    }
+
+    // 스터디 위치 마커
+    schedules.forEach((s) => {
+      if (!s.lat || !s.lng) return;
+      const marker = new window.kakao.maps.Marker({
+        map: mapRef.current,
+        position: new window.kakao.maps.LatLng(s.lat, s.lng),
+      });
+      markersRef.current.push(marker);
+    });
+  }, [userLocation, schedules]);
+
+  // 사용자 위치 가져오기
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        console.log("[MainPage] 위치 성공:", pos.coords);
+      (pos) =>
         setUserLocation({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
-        });
-      },
-      (err) => console.error("[MainPage] 위치 실패:", err)
+        }),
+      (err) => console.error("위치 실패:", err)
     );
   }, []);
 
-  // 달력 하이라이트
+  // 날짜 하이라이트
   const highlightScheduleDates = ({ date }) => {
     const found = schedules.find(
       (s) =>
@@ -274,7 +237,7 @@ const MainPage = () => {
     return found ? "highlight" : "";
   };
 
-  // 날짜 선택 일정들
+  // 선택한 날짜의 일정
   const schedulesForDate = schedules.filter(
     (s) =>
       s.date.getFullYear() === selectedDate.getFullYear() &&
@@ -282,57 +245,98 @@ const MainPage = () => {
       s.date.getDate() === selectedDate.getDate()
   );
 
-  // 일정 삭제
-  const deleteSchedule = async (scheduleId) => {
-    try {
-      console.log("[MainPage] 일정 삭제 요청, scheduleId =", scheduleId);
-      await api.delete(`/study-schedules/${scheduleId}`);
-      setSchedules((prev) => prev.filter((s) => s.id !== scheduleId));
-      alert("일정 삭제됨");
-    } catch (err) {
-      console.error("[MainPage] 삭제 실패:", err);
-    }
-  };
-
+  // ------------------------------
   // 알림 조회
+  // ------------------------------  
   useEffect(() => {
-    if (!userId) {
-      console.log("[MainPage] 알림 조회 생략: userId 없음");
-      return;
-    }
+    if (!userId) return;
 
     const loadNotifications = async () => {
       try {
-        console.log("[MainPage] /notifications 요청 시작");
         const res = await api.get("/notifications");
-        console.log("[MainPage] /notifications 응답:", res.data);
-
         const mapped = res.data.map((n) => ({
           id: n.notification_id,
           message: n.message,
           type: n.type,
-          isRead: n.is_read,
+          isRead: n.is_read, // ✅ DTO 필드명 is_read 기준으로 매핑
         }));
         setNotifications(mapped);
       } catch (err) {
-        console.error("[MainPage] 알림 실패:", err);
+        console.error("알림 실패:", err);
       }
     };
+
     loadNotifications();
+
+    // 읽지 않은 알림 개수
+    loadUnreadCount();
   }, [userId]);
 
-  const markAsRead = async (id) => {
+  // 읽지 않은 알림 수만
+  const loadUnreadCount = async () => {
     try {
-      console.log("[MainPage] 알림 읽음 처리 요청, id =", id);
-      await api.patch(`/notifications/${id}/read`);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-      );
+      const res = await api.get("/notifications/unread");
+      setUnreadCount(res.data.length || 0); // unread 배열 길이
     } catch (err) {
-      console.error("[MainPage] 읽음 실패:", err);
+      console.error("읽지 않은 알림 로딩 실패:", err);
     }
   };
 
+  // 알림 읽음 처리
+    const markAsRead = async (id) => {
+    try {
+      await api.patch(`/notifications/${id}/read`);
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === id
+            ? {
+                ...n,
+                isRead: true,
+              }
+            : n
+        )
+      );
+
+      setUnreadCount((prev) => Math.max(prev - 1, 0));
+    } catch (err) {
+      console.error("읽음 실패:", err);
+    }
+  };
+
+  // 알림 삭제
+  const deleteNotification = async (id) => {
+    if (!window.confirm("이 알림을 삭제하시겠습니까?")) return;
+
+    try {
+      await api.delete(`/notifications/${id}`);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+
+      // unread 상태였으면 감소
+      const target = notifications.find((n) => n.id === id);
+      if (target && !target.isRead) {
+        setUnreadCount((prev) => Math.max(prev - 1, 0));
+      }
+    } catch (err) {
+      console.error("알림 삭제 실패:", err);
+    }
+  };
+
+  // 모든 알림 삭제
+  const deleteAllNotifications = async () => {
+    if (!window.confirm("모든 알림을 삭제하시겠습니까?")) return;
+
+    try {
+      await api.delete("/notifications/all");
+      setNotifications([]);
+      setUnreadCount(0);
+    } catch (err) {
+      console.error("알림 전체 삭제 실패:", err);
+    }
+  };
+
+  // ------------------------------
+  // UI
+  // ------------------------------
   return (
     <div className="mainpage-wrapper">
       {/* NAVBAR */}
@@ -348,10 +352,18 @@ const MainPage = () => {
         <div className="ml-auto d-flex align-items-center">
           <span className="me-3">{username}님</span>
           <button
-            className="btn btn-sm btn-outline-light"
+            className="btn btn-sm btn-outline-light position-relative"
             onClick={() => setShowNotifications(true)}
           >
             🔔 알림
+            {unreadCount > 0 && (
+              <span
+                className="badge bg-danger position-absolute top-0 start-100 translate-middle"
+                style={{ fontSize: "0.75rem" }}
+              >
+                {unreadCount}
+              </span>
+            )}
           </button>
         </div>
       </nav>
@@ -367,17 +379,11 @@ const MainPage = () => {
                   HOME
                 </Link>
               </li>
-
               <li className="list-group-item">
-                <Link
-                  to="/main/list"
-                  className="nav-link"
-                  style={sidebarStyles.link}
-                >
+                <Link to="/main/list" className="nav-link" style={sidebarStyles.link}>
                   스터디 목록
                 </Link>
               </li>
-
               <li className="list-group-item">
                 <Link
                   to="/main/recommend"
@@ -387,23 +393,13 @@ const MainPage = () => {
                   추천 그룹
                 </Link>
               </li>
-
               <li className="list-group-item">
-                <Link
-                  to="/main/board"
-                  className="nav-link"
-                  style={sidebarStyles.link}
-                >
+                <Link to="/main/board" className="nav-link" style={sidebarStyles.link}>
                   게시판
                 </Link>
               </li>
-
               <li className="list-group-item">
-                <Link
-                  to="/main/mypage"
-                  className="nav-link"
-                  style={sidebarStyles.link}
-                >
+                <Link to="/main/mypage" className="nav-link" style={sidebarStyles.link}>
                   내 프로필
                 </Link>
               </li>
@@ -424,10 +420,14 @@ const MainPage = () => {
                         <h2>스터디 일정</h2>
                         <br />
 
+                        {/* 리더용 버튼 */}
                         {isLeader && (
                           <button
                             className="btn btn-primary btn-sm mb-3"
-                            onClick={() => setOpenLeaderModal(true)}
+                            onClick={() => {
+                              setCreateMode("study");
+                              setShowCreateModal(true);
+                            }}
                           >
                             + 새 스터디 일정 등록
                           </button>
@@ -435,7 +435,10 @@ const MainPage = () => {
 
                         <button
                           className="btn btn-success btn-sm mb-3 ms-2"
-                          onClick={() => setOpenUserModal(true)}
+                          onClick={() => {
+                            setCreateMode("personal");
+                            setShowCreateModal(true);
+                          }}
                         >
                           + 일정 추가
                         </button>
@@ -450,15 +453,23 @@ const MainPage = () => {
                           선택한 날짜: {selectedDate.toDateString()}
                         </p>
 
+                        {/* 일정 리스트 */}
                         {schedulesForDate.length > 0 ? (
                           schedulesForDate.map((s) => (
-                            <ScheduleCard
+                            <div
+                              className="p-2 border rounded mb-2 schedule-item"
+                              style={{ cursor: "pointer" }}
                               key={s.id}
-                              schedule={s}
-                              isLeader={isLeader}
-                              onDelete={() => deleteSchedule(s.id)}
-                              onOpenAttendance={() => setOpenAttendanceModal(s)}
-                            />
+                              onClick={() => {
+                                setDetailScheduleId(s.id);
+                                setOpenDetailModal(true);
+                              }}
+                            >
+                              <strong>{s.title}</strong>
+                              <div style={{ fontSize: "12px", color: "#777" }}>
+                                {s.date.toLocaleTimeString().slice(0, 5)}
+                              </div>
+                            </div>
                           ))
                         ) : (
                           <p>등록된 일정이 없습니다.</p>
@@ -482,7 +493,6 @@ const MainPage = () => {
 
                     {/* 사용자 대시보드 */}
                     <div className="mt-4">
-                      {/* ✅ userId를 Dashboard에 넘겨줌 */}
                       <UserBasicDashboard currentUserId={userId} />
                     </div>
                   </div>
@@ -495,29 +505,54 @@ const MainPage = () => {
               <Route path="board/write" element={<BoardWrite />} />
               <Route path="mypage" element={<MyPage />} />
               <Route path="edit-profile" element={<EditProfile />} />
+              <Route path="board/:postId" element={<BoardDetail />} />
+              <Route path="board/edit/:postId" element={<BoardWrite />} />
+
             </Routes>
           </div>
         </div>
       </div>
 
       {/* 일정 생성 모달 */}
-      {openLeaderModal && (
-        <CreateLeaderScheduleModal
-          onClose={() => setOpenLeaderModal(false)}
-          onCreated={(newSch) => setSchedules((prev) => [...prev, newSch])}
+      {showCreateModal && (
+        <ScheduleCreateModal
+          mode={modalMode}                       // ← 수정 모드 반영
+          groupId={selectedGroupId}
+          baseDate={
+            modalMode === "update"
+              ? null 
+              : selectedDate.toISOString().slice(0, 10)
+          }
+          scheduleData={editScheduleData}        // ← ★ 핵심! 반드시 넘겨야 함 ★
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            setShowCreateModal(false);
+            loadSchedules();
+          }}
         />
       )}
-      {openUserModal && (
-        <CreateUserScheduleModal
-          onClose={() => setOpenUserModal(false)}
-          onCreated={(newSch) => setSchedules((prev) => [...prev, newSch])}
-        />
-      )}
+      {/* 일정 상세 모달 */}
+      {openDetailModal && detailScheduleId && (
+        <ScheduleDetailModal
+          scheduleId={detailScheduleId}
+          userId={userId}
+          onClose={(mode, schedule) => {
+            setOpenDetailModal(false);
 
-      {/* 출석 체크 모달 */}
+            if (mode === "update") {
+              console.log("수정할 schedule:", schedule);
+              setEditScheduleData(schedule);               // 수정할 데이터 저장
+              setModalMode("update");                      // 수정 모드 설정
+              setCreateMode(schedule.group_id ? "study" : "personal");
+              setShowCreateModal(true);
+            }
+          }}
+        />
+      )}
+      {/* 출석 모달 */}
       {openAttendanceModal && (
         <AttendanceModal
-          schedule={openAttendanceModal}
+          scheduleId={openAttendanceModal}
           onClose={() => setOpenAttendanceModal(null)}
         />
       )}
@@ -544,23 +579,36 @@ const MainPage = () => {
                 <ul className="list-group">
                   {notifications.map((n) => (
                     <li
-                      key={n.id}
-                      className={`list-group-item d-flex justify-content-between 
-                      ${n.isRead ? "read-notification" : "unread-notification"}`}
-                      onClick={() => markAsRead(n.id)}
-                    >
+                    key={n.id}
+                    className={`list-group-item d-flex justify-content-between align-items-center 
+                    ${n.isRead ? "read-notification" : "unread-notification"}`}
+                  >
+                    <div onClick={() => markAsRead(n.id)} style={{ cursor: "pointer", flex: 1 }}>
                       <span>{n.message}</span>
                       {!n.isRead && (
-                        <span className="badge bg-warning text-dark">
-                          새 알림
-                        </span>
+                        <span className="badge bg-warning text-dark ms-2">새 알림</span>
                       )}
-                    </li>
+                    </div>
+
+                    <button
+                      className="btn btn-sm btn-outline-danger ms-2"
+                      onClick={() => deleteNotification(n.id)}
+                    >
+                      🗑
+                    </button>
+                  </li>
                   ))}
                 </ul>
               </div>
 
               <div className="modal-footer">
+                <button
+                  className="btn btn-danger btn-sm me-auto"
+                  onClick={deleteAllNotifications}
+                >
+                  전체 삭제
+                </button>
+
                 <button
                   className="btn btn-secondary btn-sm"
                   onClick={() => setShowNotifications(false)}

@@ -20,7 +20,9 @@ const MyPage = () => {
   const [showGroupModal, setShowGroupModal] = useState(false);
 
   // 1) 사용자 정보 조회
+  
   const fetchUserProfile = async () => {
+    
     try {
       const res = await api.get("/users/profile");
       setUserInfo(res.data);
@@ -44,6 +46,7 @@ const MyPage = () => {
   const fetchMannerScore = async (userId) => {
     try {
       const res = await api.get(`/manners/${userId}`);
+      console.log("📌 서버 매너 점수 응답:", res.data);
       setManner(res.data);
     } catch (err) {
       console.error("매너점수 조회 오류:", err);
@@ -110,9 +113,8 @@ const MyPage = () => {
     const load = async () => {
       const user = await fetchUserProfile();
       if (user) {
-        const userId = user.user_id;
+        const userId = user.userId  ;
         const username = user.username;
-
         await Promise.all([
           fetchJoinedGroups(userId),
           fetchMannerScore(userId),
@@ -162,14 +164,14 @@ const MyPage = () => {
           <div className="progress" style={{ height: "25px" }}>
             <div
               className={`progress-bar ${
-                (manner?.current_manner_score || 0) >= 70
+                (manner?.currentMannerScore  || 0) >= 70
                   ? "bg-success"
                   : "bg-warning"
               }`}
               role="progressbar"
-              style={{ width: `${manner?.current_manner_score || 0}%` }}
+              style={{ width: `${manner?.currentMannerScore  || 0}%` }}
             >
-              {manner?.current_manner_score ?? 0}점
+              {manner?.currentMannerScore  ?? 0}점
             </div>
           </div>
         </div>

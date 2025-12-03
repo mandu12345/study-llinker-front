@@ -1,11 +1,11 @@
 // src/pages/admin/StatusChangeModal.jsx
 import React, { useState } from "react";
 
-const StatusChangeModal = ({ user, onClose, onConfirm }) => {
-  const [status, setStatus] = useState(user.status);
+const StatusChangeModal = ({ user, targetStatus, onClose, onConfirm }) => {
+  const [status, setStatus] = useState(targetStatus);
 
   const handleSubmit = () => {
-    onConfirm(status);
+    onConfirm(user.userId, status); // ⭐ userId 반드시 함께 전달!
   };
 
   return (
@@ -25,8 +25,7 @@ const StatusChangeModal = ({ user, onClose, onConfirm }) => {
               onChange={(e) => setStatus(e.target.value)}
             >
               <option value="ACTIVE">ACTIVE</option>
-              <option value="SUSPENDED">SUSPENDED</option>
-              <option value="WITHDRAWN">WITHDRAWN</option>
+              <option value="INACTIVE">INACTIVE</option>
             </select>
           </div>
 

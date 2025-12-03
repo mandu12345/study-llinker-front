@@ -1,72 +1,82 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import api from "../../api/axios";
 
 const NotificationManager = () => {
 
-    // 메시지 입력
-    const [messageInput, setMessageInput] = useState('');
-    const [targetUser, setTargetUser] = useState('all');
+  const [messageInput, setMessageInput] = useState("");
+  const [targetUser, setTargetUser] = useState("all");
+  const [users, setUsers] = useState([]);
 
-    // ----------------------------
-    // 📨 알림 발송 (POST /api/notifications)
-    // ----------------------------
-    const handleSendNotification = () => {
-        if (!messageInput.trim()) {
-            alert('발송할 메시지를 입력해주세요.');
-            return;
-        }
+  useEffect(() => {
+    api
+      .get("/admin/users")
+      .then((res) => setUsers(res.data))
+      .catch((err) => console.error("사용자 목록 불러오기 실패:", err));
+  }, []);
 
-        const newAlert = {
-            type: "SYSTEM",
-            userId: targetUser === "all" ? null : Number(targetUser),
-            message: messageInput
-        };
+  const handleSendNotification = () => {
+    if (!messageInput.trim()) {
+      alert("발송할 메시지를 입력해주세요.");
+      return;
+    }
 
-        api.post('/notifications', newAlert)
-            .then(() => {
-                alert("알림 발송 완료!");
-                setMessageInput("");
-                setTargetUser("all");
-            })
-            .catch(err => console.error("알림 생성 실패:", err));
+    const payload = {
+      type: "SYSTEM",
+      message: messageInput,
+      userIds: targetUser === "all" ? [] : [Number(targetUser)],
     };
 
-    return (
-        <div className="notification-manager">
-            <h3>🔔 알림 발송</h3>
+    api
+      .post('/admin/notifications', payload)
+      .then(() => {
+        alert("알림 발송 완료!");
+        setMessageInput("");
+        setTargetUser("all");
+      })
+      .catch((err) => console.error("알림 생성 실패:", err));
+  };
 
-            {/* 1. 강제 알림 발송 */}
-            <div className="card mb-4 shadow-sm">
-                <div className="card-header fw-bold">강제 알림 발송</div>
-                <div className="card-body">
-                    <textarea
-                        className="form-control mb-3"
-                        rows="2"
-                        value={messageInput}
-                        onChange={(e) => setMessageInput(e.target.value)}
-                        placeholder="발송할 알림 내용을 입력하세요"
-                    />
+  return (
+    <div className="notification-manager">
+      <h3>🔔 알림 발송</h3>
 
-                    <div className="d-flex justify-content-between align-items-center">
-                        <select
-                            className="form-select w-50 me-3"
-                            value={targetUser}
-                            onChange={(e) => setTargetUser(e.target.value)}
-                        >
-                            <option value="all">전체 사용자</option>
-                            <option value="1">userId 1</option>
-                            <option value="2">userId 2</option>
-                            <option value="3">userId 3</option>
-                        </select>
+      <div className="card mb-4 shadow-sm">
+        <div className="card-header fw-bold">강제 알림 발송</div>
+        <div className="card-body">
 
-                        <button className="btn btn-primary" onClick={handleSendNotification}>
-                            알림 즉시 발송
-                        </button>
-                    </div>
-                </div>
-            </div>
+          <textarea
+            className="form-control mb-3"
+            rows="2"
+            placeholder="발송할 알림 내용을 입력하세요"
+            value={messageInput}
+            onChange={(e) => setMessageInput(e.target.value)}
+          />
+
+          <div className="d-flex justify-content-between align-items-center">
+
+            <select
+              className="form-select w-50 me-3"
+              value={targetUser}
+              onChange={(e) => setTargetUser(e.target.value)}
+            >
+              <option value="all">전체 사용자</option>
+
+              {users.map((u) => (
+                <option key={u.userId} value={u.userId}>
+                  {u.name} (ID: {u.userId})
+                </option>
+              ))}
+            </select>
+
+            <button className="btn btn-primary" onClick={handleSendNotification}>
+              알림 즉시 발송
+            </button>
+
+          </div>
         </div>
-    );
+      </div>
+    </div>
+  );
 };
 
 export default NotificationManager;

@@ -12,7 +12,7 @@ import StatusChangeModal from "./StatusChangeModal";
 
 
 // ------------------------------------------------------
-// 1) 사용자 목록 테이블
+// 사용자 목록 테이블
 // ------------------------------------------------------
 const UserTable = ({ users, onEdit, onDelete, onStatusChange }) => {
     return (
@@ -37,6 +37,7 @@ const UserTable = ({ users, onEdit, onDelete, onStatusChange }) => {
                         <td>{u.name}</td>
                         <td>{u.email}</td>
                         <td>{u.role}</td>
+
                         <td>
                             {u.status === "ACTIVE" ? (
                                 <span className="badge bg-success">활성</span>
@@ -85,42 +86,33 @@ const UserTable = ({ users, onEdit, onDelete, onStatusChange }) => {
 
 
 // ------------------------------------------------------
-// 2) 메인 UserList
+// 메인 UserList
 // ------------------------------------------------------
 const UserList = () => {
-    const { user } = useContext(AuthContext); // 🔥 로그인한 사용자 정보
+    const { user } = useContext(AuthContext);
     const [users, setUsers] = useState([]);
 
     const [currentUser, setCurrentUser] = useState(null);
-
-    // 모달
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
 
-    // ------------------------------------------------------
-    // 🔥 관리자 인증 정보 로딩 후만 fetchUsers 실행하도록 수정
-    // ------------------------------------------------------
+    // 사용자 목록 로드
     useEffect(() => {
-        if (!user) return; // 아직 로그인 정보 없음 → API 호출하지 않음
-
+        if (!user) return;
         fetchUsers();
-    }, [user]); // user가 준비되면 API 실행
-
+    }, [user]);
 
     const fetchUsers = async () => {
         try {
             const res = await api.get("/admin/users");
             setUsers(res.data);
-            console.log("관리자 모드 → 사용자 목록 로딩 성공");
         } catch (err) {
             console.error("🚨 사용자 목록 불러오기 실패:", err);
         }
     };
 
-    // ------------------------------------------------------
-    // 수정
-    // ------------------------------------------------------
+    // 수정 모달
     const handleEdit = (u) => {
         setCurrentUser(u);
         setIsEditModalOpen(true);
@@ -140,9 +132,7 @@ const UserList = () => {
         }
     };
 
-    // ------------------------------------------------------
-    // 삭제
-    // ------------------------------------------------------
+    // 삭제 모달
     const handleDeleteClick = (u) => {
         setCurrentUser(u);
         setIsDeleteModalOpen(true);
@@ -158,9 +148,7 @@ const UserList = () => {
         }
     };
 
-    // ------------------------------------------------------
-    // 상태 변경
-    // ------------------------------------------------------
+    // 상태 변경 모달
     const handleStatusChange = (userObj, newStatus) => {
         setCurrentUser({ ...userObj, targetStatus: newStatus });
         setIsStatusModalOpen(true);
@@ -192,7 +180,6 @@ const UserList = () => {
                 사용자 관리 (관리자)
             </h2>
 
-            {/* 사용자 테이블 */}
             <UserTable
                 users={users}
                 onEdit={handleEdit}
@@ -200,7 +187,7 @@ const UserList = () => {
                 onStatusChange={handleStatusChange}
             />
 
-            {/* 모달 */}
+            {/* 모달들 */}
             {isEditModalOpen && currentUser && (
                 <UserEditModal
                     user={currentUser}
@@ -220,7 +207,6 @@ const UserList = () => {
 
             {isStatusModalOpen && currentUser && (
                 <StatusChangeModal
-                    show={isStatusModalOpen}
                     user={currentUser}
                     targetStatus={currentUser.targetStatus}
                     onConfirm={handleStatusChangeConfirm}

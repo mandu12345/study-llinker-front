@@ -6,44 +6,12 @@ import api from "../../api/axios";
 import {
   FaTrash,
   FaBullhorn,
-  FaFilter,
   FaSearch,
   FaExclamationTriangle,
 } from "react-icons/fa";
 
 const BoardManagement = () => {
-  // ===============================
-  // 📌 기본 더미 데이터
-  // ===============================
-  const [posts, setPosts] = useState([
-    {
-      postId: 1,
-      title: "첫 번째 테스트 공지사항",
-      leaderId: 100,
-      type: "NOTICE",
-      reported: false,
-      reportReason: null,
-      createdAt: "2025-01-01T10:00:00",
-    },
-    {
-      postId: 2,
-      title: "스터디 모집 테스트 글입니다",
-      leaderId: 101,
-      type: "STUDY",
-      reported: false,
-      reportReason: null,
-      createdAt: "2025-01-02T15:00:00",
-    },
-    {
-      postId: 3,
-      title: "후기 테스트 글!",
-      leaderId: 102,
-      type: "REVIEW",
-      reported: true,
-      reportReason: "허위 후기 작성",
-      createdAt: "2025-01-03T13:00:00",
-    },
-  ]);
+  const [posts, setPosts] = useState([]);
 
   const [filterType, setFilterType] = useState("");
   const [showOnlyReported, setShowOnlyReported] = useState(false);
@@ -63,7 +31,9 @@ const BoardManagement = () => {
     setShowReasonModal(true);
   };
 
-  // 공지 등록
+  // ===============================
+  // 📌 공지 등록 (ADMIN 전용)
+  // ===============================
   const handleCreateNotice = () => {
     if (!noticeTitle || !noticeContent) {
       alert("제목과 내용을 입력하세요.");
@@ -71,27 +41,32 @@ const BoardManagement = () => {
     }
 
     api
-      .post("/study-posts", {
+      .post("/admin/posts/notice", {
         title: noticeTitle,
         content: noticeContent,
-        type: "NOTICE"
+        type: "NOTICE",
       })
       .then(() => {
         alert("공지사항이 등록되었습니다.");
         setNoticeTitle("");
         setNoticeContent("");
-        return api.get("/study-posts");
+        loadPosts();
       })
-      .then((res) => setPosts(sortPosts(res.data)))
       .catch((err) => console.error("공지 생성 실패:", err));
   };
 
-  // 전체 조회
-  useEffect(() => {
+  // ===============================
+  // 📌 전체 게시글 조회 (ADMIN)
+  // ===============================
+  const loadPosts = () => {
     api
-      .get("/study-posts")
+      .get("/admin/posts")
       .then((res) => setPosts(sortPosts(res.data)))
-      .catch((err) => console.error("조회 실패 → 더미 유지:", err));
+      .catch((err) => console.error("조회 실패:", err));
+  };
+
+  useEffect(() => {
+    loadPosts();
   }, []);
 
   const sortPosts = (data) => {
@@ -102,22 +77,26 @@ const BoardManagement = () => {
     });
   };
 
-  // 삭제
+  // ===============================
+  // 📌 삭제 API (ADMIN)
+  // ===============================
   const handleDelete = (postId) => {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
 
     api
-      .delete(`/study-posts/${postId}`)
+      .delete(`/admin/posts/${postId}`)
       .then(() => {
-        setPosts((prev) => prev.filter((p) => p.postId !== postId));
         alert(`게시글 ${postId} 삭제 완료`);
+        setPosts((prev) => prev.filter((p) => p.postId !== postId));
       })
       .catch((err) => console.error("삭제 실패:", err));
   };
 
   const handleEditClick = (postId) => navigate(`/admin/board/edit/${postId}`);
 
-  // 필터링
+  // ===============================
+  // 📌 필터링
+  // ===============================
   let filteredPosts = posts;
 
   if (searchQuery.trim() !== "") {
@@ -173,8 +152,6 @@ const BoardManagement = () => {
       {/* ============================ */}
       <div className="card shadow-sm p-3 mb-4">
         <div className="d-flex align-items-center gap-3">
-
-          {/* 검색창 */}
           <div className="input-group w-50">
             <span className="input-group-text bg-light">
               <FaSearch />
@@ -227,7 +204,7 @@ const BoardManagement = () => {
               <th>제목</th>
               <th>작성자</th>
               <th>유형</th>
-              <th>신고</th>
+              <th>신고 여부</th>
               <th>작성일</th>
               <th>액션</th>
             </tr>
