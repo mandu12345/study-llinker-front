@@ -23,11 +23,12 @@ const MyPage = () => {
   const fetchUserProfile = async () => {
     try {
       const res = await api.get("/users/profile");
-      console.log("📌 MyPage 프로필 응답:", res.data); // 디버그용
-      setUserInfo(res.data); // { userId, username, name, email, ... }
+      console.log("📌 프로필 응답:", res.data);
+      setUserInfo(res.data);
       return res.data;
     } catch (err) {
       console.error("사용자 정보 조회 오류:", err);
+      return null;
     }
   };
 
@@ -35,6 +36,7 @@ const MyPage = () => {
   const fetchJoinedGroups = async (userId) => {
     try {
       const res = await api.get(`/users/${userId}/groups`);
+      console.log("📌 참여 그룹 응답:", res.data);
       setJoinedGroups(res.data);
     } catch (err) {
       console.error("참여 그룹 조회 오류:", err);
@@ -53,20 +55,31 @@ const MyPage = () => {
   };
 
   // 4) 활동 이력 조회
-  const fetchActivityHistory = async (userId, username) => {
+  //    - 게시글: post.leaderId === 내 userId
+  //    - 댓글: comment.userId === 내 userId
+  const fetchActivityHistory = async (userId) => {
     try {
-      // (1) 전체 게시글 가져와서 내가 쓴 글만 필터
       const postsRes = await api.get("/study-posts");
-      const myPosts = postsRes.data.filter((p) => p.author === username);
+      const allPosts = postsRes.data || [];
+      console.log("📌 전체 게시글 예시:", allPosts[0]);
+
+      // ✅ 내가 리더인 글들만 필터링
+      const myPosts = allPosts.filter((p) => p.leaderId === userId);
+
       const postCount = myPosts.filter((p) => p.type === "FREE").length;
       const reviewCount = myPosts.filter((p) => p.type === "REVIEW").length;
 
-      // (2) 게시글별 댓글을 모아 필터링
+      // ✅ 내가 쓴 댓글 수 계산 (comment.userId 기준)
       let commentCount = 0;
-      for (const post of postsRes.data) {
+      for (const post of allPosts) {
         try {
           const cmRes = await api.get(`/study-posts/${post.postId}/comments`);
-          const myComments = cmRes.data.filter((c) => c.userId === userId);
+          const comments = cmRes.data || [];
+
+          const myComments = comments.filter(
+            (c) => c.userId === userId
+          );
+
           commentCount += myComments.length;
         } catch (e) {
           // 댓글 없는 글은 무시
@@ -85,19 +98,21 @@ const MyPage = () => {
 
   // 5) 회원 탈퇴
   const handleDeleteAccount = async () => {
-    if (!window.confirm("정말 계정을 탈퇴하시겠습니까?\n탈퇴 후 복구는 불가능합니다.")) {
-      return;
-    }
-
-    if (!userInfo || !userInfo.userId) {
-      alert("사용자 정보를 불러오지 못했습니다. 다시 로그인해 주세요.");
-      console.error("❌ userInfo 또는 userInfo.userId 없음:", userInfo);
+    if (
+      !window.confirm(
+        "정말 계정을 탈퇴하시겠습니까?\n탈퇴 후 복구는 불가능합니다."
+      )
+    ) {
       return;
     }
 
     try {
-      console.log("🗑️ 회원 탈퇴 요청 userId =", userInfo.userId);
-      await api.delete(`/users/${userInfo.userId}`);
+      if (!userInfo) {
+        alert("사용자 정보를 불러오지 못했습니다.");
+        return;
+      }
+
+      await api.delete(`/users/${userInfo.userId}`); // ✅ userId 사용
 
       alert("회원 탈퇴가 완료되었습니다.");
 
@@ -118,12 +133,11 @@ const MyPage = () => {
       const user = await fetchUserProfile();
       if (user) {
         const userId = user.userId;
-        const username = user.username;
 
         await Promise.all([
           fetchJoinedGroups(userId),
           fetchMannerScore(userId),
-          fetchActivityHistory(userId, username),
+          fetchActivityHistory(userId),
         ]);
       }
       setLoading(false);
@@ -142,10 +156,21 @@ const MyPage = () => {
         <div className="card-body">
           <h5 className="card-title mb-3">👤 기본 정보</h5>
 
-          <p><strong>이름:</strong> {userInfo?.name}</p>
-          <p><strong>아이디:</strong> {userInfo?.username}</p>
-          <p><strong>이메일:</strong> {userInfo?.email}</p>
-          <p><strong>관심사:</strong> {userInfo?.interestTags?.join(", ")}</p>
+          <p>
+            <strong>이름:</strong> {userInfo?.name}
+          </p>
+          <p>
+            <strong>아이디:</strong> {userInfo?.username}
+          </p>
+          <p>
+            <strong>이메일:</strong> {userInfo?.email}
+          </p>
+          <p>
+            <strong>관심사:</strong>{" "}
+            {userInfo?.interestTags && userInfo.interestTags.length > 0
+              ? userInfo.interestTags.join(", ")
+              : "없음"}
+          </p>
 
           <div className="d-flex justify-content-end mt-3">
             <button
@@ -185,16 +210,16 @@ const MyPage = () => {
         </div>
       </div>
 
-      {/* ------------------ 참여 스터디 그룹 ------------------ */}
+            {/* ------------------ 참여 스터디 그룹 ------------------ */}
       <div className="card mb-4 shadow-sm">
         <div className="card-body">
           <h5 className="card-title mb-3">📚 참여한 스터디 그룹</h5>
 
-          {joinedGroups.length > 0 ? (
+          {joinedGroups && joinedGroups.length > 0 ? (
             <ul className="list-group">
               {joinedGroups.map((g) => (
                 <li
-                  key={g.group_id}
+                  key={g.groupId} // ✅ group_id 말고 groupId
                   className="list-group-item d-flex justify-content-between align-items-center"
                   style={{ cursor: "pointer" }}
                   onClick={() => {
@@ -202,9 +227,12 @@ const MyPage = () => {
                     setShowGroupModal(true);
                   }}
                 >
-                  <span className="badge bg-primary">
-                    상태: {g.status}
-                  </span>
+                  <div>
+                    <strong>{g.title}</strong>
+                    <div className="small text-muted mt-1">
+                      리더: {g.leaderName} / 상태: {g.status}
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -215,23 +243,34 @@ const MyPage = () => {
       </div>
 
       {/* ------------------ 활동 이력 ------------------ */}
-      <div className="card shadow-sm mb-5">
+      <div className="card mb-4 shadow-sm">
         <div className="card-body">
-          <h5 className="card-title mb-3">📈 활동 이력</h5>
-
-          <p>후기 작성: {activity.reviews}개</p>
-          <p>게시글 작성: {activity.posts}개</p>
-          <p>댓글 수: {activity.comments}개</p>
+          <h5 className="card-title mb-3">📝 활동 이력</h5>
+          <div className="d-flex justify-content-around text-center">
+            <div>
+              <p className="h4 text-primary">{activity.posts}</p>
+              <small className="text-muted">자유 게시글</small>
+            </div>
+            <div>
+              <p className="h4 text-success">{activity.reviews}</p>
+              <small className="text-muted">스터디 후기글</small>
+            </div>
+            <div>
+              <p className="h4 text-warning">{activity.comments}</p>
+              <small className="text-muted">댓글</small>
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* 그룹 상세 모달 */}
+      
+      {/* ------------------ 모달 ------------------ */}
       {showGroupModal && selectedGroup && (
         <StudyGroupDetailModal
           group={selectedGroup}
-          // 🔴 원래 userInfo.user_id 였음 → 응답 DTO에 맞게 수정
-          userId={userInfo.userId}
-          onClose={() => setShowGroupModal(false)}
+          onClose={() => {
+            setShowGroupModal(false);
+            setSelectedGroup(null);
+          }}
         />
       )}
     </div>

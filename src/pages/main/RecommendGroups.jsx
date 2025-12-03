@@ -19,7 +19,8 @@ const RecommendGroups = () => {
     const loadUserInfo = async () => {
       try {
         const res = await api.get("/users/profile");
-        setUserId(res.data.user.userId);
+        console.log("프로필 응답:", res.data);
+        setUserId(res.data.userId);
       } catch (err) {
         console.error("유저 정보 불러오기 실패:", err);
       }
@@ -38,7 +39,13 @@ const RecommendGroups = () => {
             lng: pos.coords.longitude,
           });
         },
-        (err) => console.error("위치 가져오기 실패:", err)
+        (err) => {
+          console.error("위치 가져오기 실패:", err);
+          if (err.code === 1) {
+            // 필요하면 안내창 띄우기
+            // alert("브라우저에서 위치 권한이 차단되었습니다.\n주소창 왼쪽 자물쇠 아이콘 > 사이트 설정 > 위치를 허용으로 변경해주세요.");
+          }
+        }
       );
     }
   }, []);
@@ -50,7 +57,7 @@ const RecommendGroups = () => {
     alg = algorithm,
     uid = userId
   ) => {
-    if (!loc || !uid) return;
+    if (!loc || !uid) return; // 위치나 userId 없으면 호출하지 않음
 
     try {
       let url = "";
@@ -60,25 +67,28 @@ const RecommendGroups = () => {
         url = "/recommend/tag";
       } else if (alg === "popular") {
         // 위치 + 인기 기반 추천
-        url = "/groups/popular";
+        url = "/recommend/popular";
       }
 
       const res = await api.get(url, {
         params: {
-          userId: uid,
+          userId: uid, // popular API는 안 써도 보내는 건 문제 없음
           limit: 10,
           lat: loc.lat,
           lng: loc.lng,
-          radiuskm: rad,
+          radiusKm: rad,
         },
       });
 
-      setGroups(res.data);
+      console.log("추천 API 응답:", res.data);
+      // 응답: { criteria, radiusKm, limit, groups: [...] }
+      setGroups(res.data.groups || []);
     } catch (err) {
       console.error("추천 스터디 불러오기 실패:", err);
     }
   };
 
+  // 위치/반경/알고리즘/userId 변경될 때마다 추천 다시 불러오기
   useEffect(() => {
     loadRecommendations();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,7 +111,7 @@ const RecommendGroups = () => {
   // 4) 지도 표시
   useEffect(() => {
     if (!window.kakao || !window.kakao.maps) return;
-    if (groups.length === 0) return;
+    if (!Array.isArray(groups) || groups.length === 0) return;
 
     window.kakao.maps.load(() => {
       const container = document.getElementById("recommend-map");
@@ -110,20 +120,24 @@ const RecommendGroups = () => {
       // 지도 초기화
       container.innerHTML = "";
 
+      const first = groups[0];
+      const centerLat = first.lat || first.latitude;
+      const centerLng = first.lng || first.longitude;
+
+      if (centerLat == null || centerLng == null) return;
+
       const map = new window.kakao.maps.Map(container, {
-        center: new window.kakao.maps.LatLng(
-          groups[0].lat || groups[0].latitude,
-          groups[0].lng || groups[0].longitude
-        ),
+        center: new window.kakao.maps.LatLng(centerLat, centerLng),
         level: 5,
       });
 
       groups.forEach((g) => {
+        const lat = g.lat || g.latitude;
+        const lng = g.lng || g.longitude;
+        if (lat == null || lng == null) return;
+
         new window.kakao.maps.Marker({
-          position: new window.kakao.maps.LatLng(
-            g.lat || g.latitude,
-            g.lng || g.longitude
-          ),
+          position: new window.kakao.maps.LatLng(lat, lng),
           map,
         });
       });
@@ -137,10 +151,11 @@ const RecommendGroups = () => {
 
     const geocoder = new window.kakao.maps.services.Geocoder();
 
-    const coord = new window.kakao.maps.LatLng(
-      selectedGroup.lat || selectedGroup.latitude,
-      selectedGroup.lng || selectedGroup.longitude
-    );
+    const lat = selectedGroup.lat || selectedGroup.latitude;
+    const lng = selectedGroup.lng || selectedGroup.longitude;
+    if (lat == null || lng == null) return;
+
+    const coord = new window.kakao.maps.LatLng(lat, lng);
 
     geocoder.coord2Address(coord.getLng(), coord.getLat(), (result, status) => {
       if (status === window.kakao.maps.services.Status.OK) {
@@ -163,7 +178,7 @@ const RecommendGroups = () => {
       <br />
 
       {/* 추천 방식 선택 */}
-      <div className="mb-3">
+      <div className="mb-1">
         <label className="form-label fw-bold me-2">추천 방식 선택:</label>
         <select
           value={algorithm}
@@ -174,6 +189,16 @@ const RecommendGroups = () => {
           <option value="popular">인기 기반 추천</option>
         </select>
       </div>
+
+      {/* 점수 설명 문구 */}
+      <p
+        className="text-muted"
+        style={{ fontSize: "0.85rem", marginTop: "4px", marginBottom: "12px" }}
+      >
+        {algorithm === "locationNLP"
+          ? "점수는 거리 점수와 관심 태그 유사도를 합쳐 계산됩니다."
+          : "점수는 스터디 인기(멤버 수)와 거리 정보를 합쳐 계산됩니다."}
+      </p>
 
       {/* 반경 선택 */}
       <div className="mb-3">
@@ -197,50 +222,78 @@ const RecommendGroups = () => {
 
       {/* 추천 스터디 리스트 */}
       <div className="row">
-        {groups.map((group) => (
-          <div key={group.studyGroupId} className="col-md-6 mb-3">
-            <div className="card shadow-sm">
-              <div className="card-body">
-                <h5 className="card-title">{group.name}</h5>
-                <p className="card-text">
-                  {group.description}
-                  <br />
-                  태그:{" "}
-                  {group.category && (
-                    <span className="badge bg-secondary me-1">
-                      #{group.category}
-                    </span>
-                  )}
-                  <br />
-                  거리: {group.distanceKm?.toFixed(1)} km
-                  <br />
-                  평점: ⭐ {group.rating || "-"}
-                </p>
+        {Array.isArray(groups) &&
+          groups.map((group) => {
+            // DTO 통합 처리 (TagRecommendGroupDto + PopularLocationGroupDto)
+            const id = group.studyGroupId ?? group.groupId;
+            const name = group.name ?? group.title;
+            const description = group.description ?? "";
+            const distanceKm = group.distanceKm;
+            const score = group.finalScore;
 
-                <div className="d-flex justify-content-between">
-                  <button
-                    className="btn btn-outline-primary btn-sm"
-                    onClick={() => {
-                      setSelectedGroup(group);
-                      setShowModal(true);
-                    }}
-                  >
-                    상세보기
-                  </button>
+            const categoryText = Array.isArray(group.category)
+              ? group.category.join(", ")
+              : null;
 
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => handleJoin(group.studyGroupId)}
-                  >
-                    참여 신청
-                  </button>
+            return (
+              <div
+                key={id ?? `${name}-${Math.random()}`}
+                className="col-md-6 mb-3"
+              >
+                <div className="card shadow-sm">
+                  <div className="card-body">
+                    <h5 className="card-title">{name}</h5>
+                    <p className="card-text">
+                      {description}
+                      <br />
+                      {categoryText && (
+                        <>
+                          태그:{" "}
+                          <span className="badge bg-secondary me-1">
+                            #{categoryText}
+                          </span>
+                          <br />
+                        </>
+                      )}
+                      거리:{" "}
+                      {distanceKm != null ? distanceKm.toFixed(1) : "-"} km
+                      <br />
+                      <strong>
+                        {algorithm === "locationNLP"
+                          ? "태그·거리 점수"
+                          : "인기·거리 점수"}
+                        :
+                      </strong>{" "}
+                      ⭐ {score != null ? score.toFixed(2) : "-"}
+                    </p>
+
+                    <div className="d-flex justify-content-between">
+                      <button
+                        className="btn btn-outline-primary btn-sm"
+                        onClick={() => {
+                          setSelectedGroup(group);
+                          setShowModal(true);
+                        }}
+                      >
+                        상세보기
+                      </button>
+
+                      {id && (
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => handleJoin(id)}
+                        >
+                          참여 신청
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
-        ))}
+            );
+          })}
 
-        {groups.length === 0 && (
+        {Array.isArray(groups) && groups.length === 0 && (
           <p>선택한 반경 내 추천 스터디가 없습니다.</p>
         )}
       </div>
@@ -254,7 +307,9 @@ const RecommendGroups = () => {
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header bg-primary text-white">
-                <h5 className="modal-title">{selectedGroup.name}</h5>
+                <h5 className="modal-title">
+                  {selectedGroup.name ?? selectedGroup.title}
+                </h5>
                 <button
                   type="button"
                   className="btn-close btn-close-white"
@@ -262,22 +317,41 @@ const RecommendGroups = () => {
                 ></button>
               </div>
               <div className="modal-body">
-                <p><strong>설명:</strong> {selectedGroup.description}</p>
                 <p>
-                  <strong>카테고리:</strong>{" "}
-                  {selectedGroup.category && (
-                    <span className="badge bg-info text-dark me-1">
-                      #{selectedGroup.category}
-                    </span>
-                  )}
+                  <strong>설명:</strong>{" "}
+                  {selectedGroup.description ?? "-"}
                 </p>
+
+                {Array.isArray(selectedGroup.category) && (
+                  <p>
+                    <strong>카테고리:</strong>{" "}
+                    <span className="badge bg-info text-dark me-1">
+                      #{selectedGroup.category.join(", ")}
+                    </span>
+                  </p>
+                )}
+
                 <p>
                   <strong>위치:</strong>{" "}
                   {selectedAddress
                     ? selectedAddress
-                    : `${selectedGroup.lat}, ${selectedGroup.lng}`}
+                    : `${selectedGroup.lat || selectedGroup.latitude}, ${
+                        selectedGroup.lng || selectedGroup.longitude
+                      }`}
                 </p>
-                <p><strong>평점:</strong> ⭐ {selectedGroup.rating}</p>
+
+                <p>
+                  <strong>
+                    {algorithm === "locationNLP"
+                      ? "태그·거리 점수"
+                      : "인기·거리 점수"}
+                    :
+                  </strong>{" "}
+                  ⭐{" "}
+                  {selectedGroup.finalScore != null
+                    ? selectedGroup.finalScore.toFixed(2)
+                    : "-"}
+                </p>
               </div>
               <div className="modal-footer">
                 <button
