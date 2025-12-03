@@ -49,22 +49,10 @@ const ScheduleDetailModal = ({ scheduleId, onClose, userId }) => {
     try {
       await api.delete(`/study-schedules/${scheduleId}`);
       alert("일정 삭제 완료");
-      onClose(true);
+      onClose("deleted");
     } catch (err) {
       console.error("삭제 오류:", err);
       alert("삭제 실패");
-    }
-  };
-
-  const handleComplete = async () => {
-    try {
-      await api.patch(`/study-schedules/${scheduleId}/status`, {
-        status: "COMPLETED",
-      });
-      alert("완료 처리됨");
-      onClose(true);
-    } catch (err) {
-      console.error("완료 오류:", err);
     }
   };
 
@@ -138,9 +126,6 @@ const ScheduleDetailModal = ({ scheduleId, onClose, userId }) => {
                 </button>
                 <button className="btn btn-danger" onClick={handleDelete}>
                   삭제
-                </button>
-                <button className="btn btn-secondary" onClick={handleComplete}>
-                  완료
                 </button>
               </>
             )}

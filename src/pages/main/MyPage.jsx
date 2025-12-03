@@ -20,12 +20,11 @@ const MyPage = () => {
   const [showGroupModal, setShowGroupModal] = useState(false);
 
   // 1) 사용자 정보 조회
-  
   const fetchUserProfile = async () => {
-    
     try {
       const res = await api.get("/users/profile");
-      setUserInfo(res.data);
+      console.log("📌 MyPage 프로필 응답:", res.data); // 디버그용
+      setUserInfo(res.data); // { userId, username, name, email, ... }
       return res.data;
     } catch (err) {
       console.error("사용자 정보 조회 오류:", err);
@@ -42,7 +41,7 @@ const MyPage = () => {
     }
   };
 
-  // 3) 매너점수 조회 
+  // 3) 매너점수 조회
   const fetchMannerScore = async (userId) => {
     try {
       const res = await api.get(`/manners/${userId}`);
@@ -86,35 +85,41 @@ const MyPage = () => {
 
   // 5) 회원 탈퇴
   const handleDeleteAccount = async () => {
-  if (!window.confirm("정말 계정을 탈퇴하시겠습니까?\n탈퇴 후 복구는 불가능합니다.")) {
-    return;
-  }
+    if (!window.confirm("정말 계정을 탈퇴하시겠습니까?\n탈퇴 후 복구는 불가능합니다.")) {
+      return;
+    }
 
-  try {
-    await api.delete(`/users/${userInfo.user_id}`);
+    if (!userInfo || !userInfo.userId) {
+      alert("사용자 정보를 불러오지 못했습니다. 다시 로그인해 주세요.");
+      console.error("❌ userInfo 또는 userInfo.userId 없음:", userInfo);
+      return;
+    }
 
-    alert("회원 탈퇴가 완료되었습니다.");
+    try {
+      console.log("🗑️ 회원 탈퇴 요청 userId =", userInfo.userId);
+      await api.delete(`/users/${userInfo.userId}`);
 
-    // JWT 토큰 삭제
-    localStorage.removeItem("token");
+      alert("회원 탈퇴가 완료되었습니다.");
 
-    // 로그인 페이지로 이동
-    navigate("/login");
-  } catch (err) {
-    console.error("회원 탈퇴 오류:", err);
-    alert("회원 탈퇴 실패! 관리자에게 문의하세요.");
-  }
-};
+      // JWT 토큰 삭제
+      localStorage.removeItem("token");
 
+      // 로그인 페이지로 이동
+      navigate("/login");
+    } catch (err) {
+      console.error("회원 탈퇴 오류:", err);
+      alert("회원 탈퇴 실패! 관리자에게 문의하세요.");
+    }
+  };
 
   // 전체 데이터 로드
   useEffect(() => {
-    
     const load = async () => {
       const user = await fetchUserProfile();
       if (user) {
-        const userId = user.userId  ;
+        const userId = user.userId;
         const username = user.username;
+
         await Promise.all([
           fetchJoinedGroups(userId),
           fetchMannerScore(userId),
@@ -149,7 +154,10 @@ const MyPage = () => {
             >
               내 정보 수정
             </button>
-            <button className="btn btn-outline-danger" onClick={handleDeleteAccount}>
+            <button
+              className="btn btn-outline-danger"
+              onClick={handleDeleteAccount}
+            >
               회원 탈퇴
             </button>
           </div>
@@ -164,14 +172,14 @@ const MyPage = () => {
           <div className="progress" style={{ height: "25px" }}>
             <div
               className={`progress-bar ${
-                (manner?.currentMannerScore  || 0) >= 70
+                (manner?.currentMannerScore || 0) >= 70
                   ? "bg-success"
                   : "bg-warning"
               }`}
               role="progressbar"
-              style={{ width: `${manner?.currentMannerScore  || 0}%` }}
+              style={{ width: `${manner?.currentMannerScore || 0}%` }}
             >
-              {manner?.currentMannerScore  ?? 0}점
+              {manner?.currentMannerScore ?? 0}점
             </div>
           </div>
         </div>
@@ -221,7 +229,8 @@ const MyPage = () => {
       {showGroupModal && selectedGroup && (
         <StudyGroupDetailModal
           group={selectedGroup}
-          userId={userInfo.user_id}
+          // 🔴 원래 userInfo.user_id 였음 → 응답 DTO에 맞게 수정
+          userId={userInfo.userId}
           onClose={() => setShowGroupModal(false)}
         />
       )}

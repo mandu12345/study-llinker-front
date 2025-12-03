@@ -466,9 +466,6 @@ const MainPage = () => {
                               }}
                             >
                               <strong>{s.title}</strong>
-                              <div style={{ fontSize: "12px", color: "#777" }}>
-                                {s.date.toLocaleTimeString().slice(0, 5)}
-                              </div>
                             </div>
                           ))
                         ) : (
@@ -521,7 +518,7 @@ const MainPage = () => {
           baseDate={
             modalMode === "update"
               ? null 
-              : selectedDate.toISOString().slice(0, 10)
+              : selectedDate.toLocaleDateString("en-CA")
           }
           scheduleData={editScheduleData}        // ← ★ 핵심! 반드시 넘겨야 함 ★
           onClose={() => setShowCreateModal(false)}
@@ -538,6 +535,12 @@ const MainPage = () => {
           userId={userId}
           onClose={(mode, schedule) => {
             setOpenDetailModal(false);
+
+            // ⭐ 삭제 후 목록 새로고침
+            if (mode === "deleted") {
+              loadSchedules();    // ← 일정 목록 다시 불러오기
+              return;
+            }
 
             if (mode === "update") {
               console.log("수정할 schedule:", schedule);

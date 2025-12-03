@@ -12,16 +12,21 @@ const EditProfile = () => {
   // 1. 사용자 정보 불러오기
   const fetchProfile = async () => {
     try {
-      const res = await api.get("/users/profile"); // 토큰 기반
+      const res = await api.get("/users/profile");
       const data = res.data;
 
+      console.log("프로필 응답 데이터:", data);
+
       setUser({
-        user_id: data.user_id,
+        userId: data.userId,
         username: data.username,
         email: data.email,
         name: data.name,
+        role: data.role,
+        latitude: data.latitude,
+        longitude: data.longitude,
         password: "",
-        interest_tags: data.interest_tags || [],
+        interestTags: data.interestTags || [],
       });
 
       setLoading(false);
@@ -34,16 +39,19 @@ const EditProfile = () => {
 
   useEffect(() => {
     fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (loading || !user) return <div className="container mt-4">로딩중...</div>;
+  if (loading || !user) {
+    return <div className="container mt-4">로딩중...</div>;
+  }
 
   // 2. 태그 추가
   const handleAddTag = () => {
-    if (newTag && !user.interest_tags.includes(newTag)) {
+    if (newTag && !user.interestTags.includes(newTag)) {
       setUser({
         ...user,
-        interest_tags: [...user.interest_tags, newTag],
+        interestTags: [...user.interestTags, newTag],
       });
     }
     setNewTag("");
@@ -53,36 +61,39 @@ const EditProfile = () => {
   const handleRemoveTag = (tag) => {
     setUser({
       ...user,
-      interest_tags: user.interest_tags.filter((t) => t !== tag),
+      interestTags: user.interestTags.filter((t) => t !== tag),
     });
   };
 
-  // 3. 정보 수정 요청
+  // 3. 정보 수정 요청 (이름 + 태그 + 비밀번호까지 한 번에)
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
-    // 1) 기본 정보 수정 (이름, 태그 등)
-    await api.put(`/users/${user.user_id}`, {
-      name: user.name,
-      interest_tags: user.interest_tags,
-    });
+    try {
+      // 새 비밀번호가 비어 있으면 null로 보내서, 백엔드에서 무시하게 처리
+      const passwordToSend =
+        user.password && user.password.trim() !== ""
+          ? user.password
+          : null;
 
-    // 2) 새 비밀번호가 입력된 경우에만 비밀번호 변경 API 호출
-    if (user.password && user.password.trim() !== "") {
-      await api.patch(`/users/${user.user_id}/password`, {
-        password: user.password,
+      await api.put(`/users/${user.userId}`, {
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        interestTags: user.interestTags,
+        latitude: user.latitude,
+        longitude: user.longitude,
+        role: user.role,
+        password: passwordToSend, // ⭐ UserRequest.password
       });
+
+      alert("정보 수정이 완료되었습니다!");
+      navigate("/main/mypage");
+    } catch (err) {
+      console.error("정보 수정 오류:", err);
+      alert("정보 수정에 실패했습니다. 서버 상태를 확인하세요.");
     }
-
-    alert("정보 수정이 완료되었습니다!");
-    navigate("/main/mypage");
-
-  } catch (err) {
-    console.error("정보 수정 오류:", err);
-    alert("정보 수정에 실패했습니다. 서버 상태를 확인하세요.");
-  }
-};
+  };
 
   return (
     <div className="container mt-4">
@@ -118,7 +129,10 @@ const EditProfile = () => {
             className="form-control"
             value={user.name}
             onChange={(e) =>
-              setUser({ ...user, name: e.target.value })
+              setUser({
+                ...user,
+                name: e.target.value,
+              })
             }
           />
         </div>
@@ -129,10 +143,13 @@ const EditProfile = () => {
           <input
             type="password"
             className="form-control"
-            placeholder="변경할 비밀번호 입력"
+            placeholder="변경할 비밀번호 입력 (미입력 시 변경 안 됨)"
             value={user.password}
             onChange={(e) =>
-              setUser({ ...user, password: e.target.value })
+              setUser({
+                ...user,
+                password: e.target.value,
+              })
             }
           />
         </div>
@@ -140,8 +157,9 @@ const EditProfile = () => {
         {/* 관심사 태그 */}
         <div className="mb-3">
           <label className="form-label">관심사 태그</label>
+
           <div className="mb-2">
-            {user.interest_tags.map((tag, i) => (
+            {user.interestTags.map((tag, i) => (
               <span
                 key={i}
                 className="badge bg-primary me-2"
