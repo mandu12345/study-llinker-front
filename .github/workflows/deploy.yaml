@@ -1,0 +1,54 @@
+name: Frontend CI/CD (DockerHub)
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 소스 체크아웃
+      - uses: actions/checkout@v3
+
+      # 2. Docker Hub 로그인
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # 3. 도커 빌드 & 푸시
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          # [수정됨] 사용자명과 레포이름 사이에 슬래시(/) 추가!
+          tags: ${{ secrets.DOCKER_USERNAME }}/p_frontend:${{ github.sha }}
+
+      # 4. Manifest Repo 업데이트 (GitOps)
+      - name: Update Manifest
+        env:
+          GIT_TOKEN: ${{ secrets.GH_PAT_TOKEN }}
+          DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
+        run: |
+          # [수정됨] github.com 뒤에 슬래시 하나 제거
+          git clone https://x-access-token:${GIT_TOKEN}@github.com/studylinker/manifest.git manifest-repo
+          cd manifest-repo/frontend
+          
+          # deployment.yaml 수정
+          # 여기는 이미 슬래시가 잘 들어가 있었네요. (Docker Hub 레포 이름이 p_frontend가 맞는지 확인하세요)
+          sed -i "s|image: .*|image: ${DOCKER_USER}/p_frontend:${{ github.sha }}|g" web-deployment.yaml
+          
+          git config user.name "CI Bot"
+          git config user.email "ci@bot.com"
+          
+          if [[ -n $(git status -s) ]]; then
+            git add .
+            git commit -m "Update frontend image to ${{ github.sha }} (DockerHub)"
+            git push
+          else
+            echo "No changes to commit"
+          fi
