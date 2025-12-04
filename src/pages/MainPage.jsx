@@ -242,12 +242,13 @@ const MainPage = () => {
         new window.kakao.maps.LatLng(userLocation.lat, userLocation.lng)
       );
     }
-
+    
     // ⭐ 스터디 전용 마커 이미지
     const studyMarkerImg = new window.kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png",
       new window.kakao.maps.Size(24, 35)
     );
+
 
     // 🔴 스터디 위치 마커 + 클릭 시 InfoWindow 표시
     schedules.forEach((s) => {
@@ -473,90 +474,95 @@ const MainPage = () => {
             <Routes>
               {/* HOME */}
               <Route
-                index
-                element={
-                  <div>
-                    <div className="row">
-                      {/* 달력 영역 */}
-                      <div className="col-md-6">
-                        <h2><strong>스터디 일정</strong></h2>
-                        <br />
+              index
+              element={
+                <div>
+                  {/* ✅ 제목 + 버튼: 달력/지도 위에 한 줄로 배치 */}
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h2 className="mb-0">
+                      <strong>스터디 일정</strong>
+                    </h2>
 
-                        {/* 리더용 버튼 */}
-                        {isLeader && (
-                          <button
-                            className="learn-more btn-spacing"
-                            onClick={() => {
-                              setCreateMode("study");
-                              setShowCreateModal(true);
-                            }}
-                          >
-                            ➕ 스터디 일정 등록
-                          </button>
-                        )}
-
+                    <div>
+                      {isLeader && (
                         <button
                           className="learn-more btn-spacing"
                           onClick={() => {
-                            setCreateMode("personal");
+                            setCreateMode("study");
                             setShowCreateModal(true);
                           }}
                         >
-                          ➕ 개인 일정 등록
+                          + 스터디 일정 등록
                         </button>
+                      )}
 
-                        <Calendar
-                          onChange={setSelectedDate}
-                          value={selectedDate}
-                          tileClassName={highlightScheduleDates}
-                        />
-
-                        <p className="mt-2">
-                          선택한 날짜: {selectedDate.toDateString()}
-                        </p>
-
-                        {/* 일정 리스트 */}
-                        {schedulesForDate.length > 0 ? (
-                          schedulesForDate.map((s) => (
-                            <div
-                              className="p-2 border rounded mb-2 schedule-item"
-                              style={{ cursor: "pointer" }}
-                              key={s.id}
-                              onClick={() => {
-                                setDetailScheduleId(s.id);
-                                setOpenDetailModal(true);
-                              }}
-                            >
-                              <strong>{s.title}</strong>
-                            </div>
-                          ))
-                        ) : (
-                          <p>등록된 일정이 없습니다.</p>
-                        )}
-                      </div>
-
-                      {/* 지도 영역 */}
-                      <div className="col-md-6">
-                        <div
-                          id="map"
-                          style={{
-                            width: "100%",
-                            height: "400px",
-                            borderRadius: "10px",
-                            backgroundColor: "#eee",
-                            marginTop: "25px",
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    {/* 사용자 대시보드 */}
-                    <div className="mt-4">
-                      <UserBasicDashboard currentUserId={userId} />
+                      <button
+                        className="learn-more btn-spacing"
+                        onClick={() => {
+                          setCreateMode("personal");
+                          setShowCreateModal(true);
+                        }}
+                      >
+                        + 개인 일정 등록
+                      </button>
                     </div>
                   </div>
-                }
-              />
+
+                  {/* ✅ 달력 / 지도 수평 정렬 */}
+                  <div className="row">
+                    {/* 달력 영역 */}
+                    <div className="col-md-6">
+                      <Calendar
+                        onChange={setSelectedDate}
+                        value={selectedDate}
+                        tileClassName={highlightScheduleDates}
+                      />
+
+                      <p className="mt-2">
+                        선택한 날짜: {selectedDate.toDateString()}
+                      </p>
+
+                      {/* 일정 리스트 */}
+                      {schedulesForDate.length > 0 ? (
+                        schedulesForDate.map((s) => (
+                          <div
+                            className="p-2 border rounded mb-2 schedule-item"
+                            style={{ cursor: "pointer" }}
+                            key={s.id}
+                            onClick={() => {
+                              setDetailScheduleId(s.id);
+                              setOpenDetailModal(true);
+                            }}
+                          >
+                            <strong>{s.title}</strong>
+                          </div>
+                        ))
+                      ) : (
+                        <p>등록된 일정이 없습니다.</p>
+                      )}
+                    </div>
+
+                    {/* 지도 영역 */}
+                    <div className="col-md-6 d-flex align-items-stretch">
+                      <div
+                        id="map"
+                        style={{
+                          width: "100%",
+                          height: "400px",
+                          borderRadius: "10px",
+                          backgroundColor: "#eee",
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  {/* 사용자 대시보드 */}
+                  <div className="mt-4">
+                    <UserBasicDashboard currentUserId={userId} />
+                  </div>
+                </div>
+              }
+            />
                 <Route path="list" element={<StudyList />} />
                 <Route path="recommend" element={<RecommendGroups />} />
                 <Route path="board" element={<Board />} />

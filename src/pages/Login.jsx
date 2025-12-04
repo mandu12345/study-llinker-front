@@ -158,7 +158,7 @@ const Login = () => {
             onClick={() => setMode("signin")}
             className={mode === "signin" ? "active" : ""}
           >
-            SIGN OUT
+            SIGN IN
           </a>
         </li>
         <li>

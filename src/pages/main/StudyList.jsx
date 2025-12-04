@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import api from "../../api/axios";
 import StudyGroupDetailModal from "../../components/StudyGroupDetailModal";
+import "./StudyListButtons.css";
 
 function getDistance(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -319,7 +320,7 @@ const StudyList = () => {
           <div key={g.groupId} className="col-md-6 mb-3">
             <div className="card shadow-sm">
               <div className="card-body">
-                <h5>{g.title}</h5>
+                <h5><strong>{g.title}</strong></h5>
                 <p>{g.description}</p>
 
                 <p>
@@ -328,19 +329,25 @@ const StudyList = () => {
                 </p>
 
                 <button
-                  className="btn btn-outline-primary btn-sm me-2"
+                  className="study-btn study-btn-detail me-2"
                   onClick={() => openDetailModal(g)}
                 >
                   상세보기
+                  <span className="icon-box">
+                    <i className="bi bi-arrow-right"></i>
+                  </span>
                 </button>
 
-                {/* 신청 버튼 (비활성화 포함) */}
                 <button
-                  className="btn btn-primary btn-sm"
+                  className="study-btn study-btn-join"
                   disabled={joinedGroups.has(g.groupId)}
                   onClick={() => handleJoin(g.groupId)}
                 >
                   {joinedGroups.has(g.groupId) ? "신청됨" : "참여 신청"}
+
+                  <span className="icon-box">
+                    <i className="bi bi-check2-circle"></i>
+                  </span>
                 </button>
               </div>
             </div>

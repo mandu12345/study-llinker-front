@@ -1,0 +1,57 @@
+/* =============================== */
+/* 🌸 USER DASHBOARD – Pastel Style */
+/* =============================== */
+
+/* 카드 공통 스타일 */
+.dashboard-card {
+  background: #fdfdff;  /* 파스텔 화이트 */
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid #ececec;
+  box-shadow: 0 4px 10px rgba(150, 150, 150, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* 호버 효과 */
+.dashboard-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 14px rgba(150, 150, 150, 0.12);
+}
+
+/* 카드 제목 */
+.dashboard-card h4 {
+  font-weight: 700;
+  color: #6a7ba2;  /* 파스텔 블루톤 */
+  margin-bottom: 12px;
+}
+
+/* 내용 텍스트 */
+.dashboard-card p,
+.dashboard-card span {
+  color: #555;
+  font-size: 15px;
+}
+
+/* ================================ */
+/* 🎨 파스텔 전용 색상 강조 요소들 */
+/* ================================ */
+
+.pastel-green {
+  background-color: #e8f8f2;
+  border-left: 6px solid #8ad4b0;
+}
+
+.pastel-blue {
+  background-color: #eef5ff;
+  border-left: 6px solid #92b7ff;
+}
+
+.pastel-yellow {
+  background-color: #fff7d1;
+  border-left: 6px solid #ffd66e;
+}
+
+.pastel-pink {
+  background-color: #ffe8f1;
+  border-left: 6px solid #ff9fbd;
+}

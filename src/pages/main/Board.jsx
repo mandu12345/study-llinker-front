@@ -230,12 +230,14 @@ const Board = () => {
           type="text"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleSearch();
+            }
+          }}
           className="form-control"
           placeholder="검색어 입력"
         />
-        <button className="btn btn-outline-secondary" onClick={handleSearch}>
-          🔍 검색
-        </button>
       </div>
 
       {/* 게시글 목록 */}

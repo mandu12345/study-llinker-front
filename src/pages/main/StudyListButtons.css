@@ -1,0 +1,66 @@
+/* 공통 버튼 기본 스타일 */
+.study-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 6px 12px;         /* 🔽 크기 축소 */
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;           /* 🔽 크기 축소 */
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: 0.25s ease;
+}
+
+/* ======================================
+      상세보기 버튼 (Outline + 파스텔 보라)
+====================================== */
+.study-btn-detail {
+  border-color: #a78bfa;     /* 보라 파스텔 */
+  color: #6d28d9;            /* 좀 더 진한 포인트 보라 */
+  background: white;
+}
+
+.study-btn-detail:hover {
+  background: rgba(167, 139, 250, 0.12);
+}
+
+/* 상세보기 체크박스 */
+.study-btn-detail .icon-box {
+  background: rgba(167, 139, 250, 0.18);
+  border-radius: 5px;
+  padding: 3px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ======================================
+      참여 신청 버튼 (Solid + 파스텔 보라)
+====================================== */
+.study-btn-join {
+  background: #e9d5ff;       /* 파스텔 연보라 */
+  color: #6d28d9;
+  border-color: #c4b5fd;     /* 연보라 보더 */
+}
+
+.study-btn-join:hover {
+  background: #ddc7ff;
+}
+
+/* 체크 아이콘 박스 */
+.study-btn-join .icon-box {
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 5px;
+  padding: 3px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 비활성화 상태 */
+.study-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
