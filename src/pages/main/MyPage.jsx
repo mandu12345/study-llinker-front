@@ -178,9 +178,9 @@ const MyPage = () => {
   if (loading) return <div className="container mt-4">로딩중...</div>;
 
   return (
-    <div className="container mt-4">
-      <h2 className="mb-4">내 프로필</h2>
-
+    <div>
+      <h2><strong>내 프로필</strong></h2>
+      <br />
       {/* ------------------ 기본 정보 ------------------ */}
       <div className="card mb-4 shadow-sm">
         <div className="card-body">

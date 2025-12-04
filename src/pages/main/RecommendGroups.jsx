@@ -174,7 +174,7 @@ const RecommendGroups = () => {
   // UI 시작
   return (
     <div>
-      <h2>스터디 추천</h2>
+      <h2><strong>스터디 추천</strong></h2>
       <br />
 
       {/* 추천 방식 선택 */}

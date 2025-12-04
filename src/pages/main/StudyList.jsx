@@ -298,8 +298,8 @@ const StudyList = () => {
   // -------------------------------
   return (
     <div>
-      <h2>스터디 목록</h2>
-
+      <h2><strong>스터디 목록</strong></h2>
+      <br />
       <input
         className="form-control mb-3"
         placeholder="스터디 검색..."

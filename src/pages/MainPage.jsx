@@ -5,7 +5,6 @@ import { Link, Routes, Route, useLocation } from "react-router-dom";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 import "./Mainpage.css";
-
 import api from "../api/axios";
 
 // 기존 네 프로젝트 파일들
@@ -480,30 +479,30 @@ const MainPage = () => {
                     <div className="row">
                       {/* 달력 영역 */}
                       <div className="col-md-6">
-                        <h2>스터디 일정</h2>
+                        <h2><strong>스터디 일정</strong></h2>
                         <br />
 
                         {/* 리더용 버튼 */}
                         {isLeader && (
                           <button
-                            className="btn btn-primary btn-sm mb-3"
+                            className="learn-more btn-spacing"
                             onClick={() => {
                               setCreateMode("study");
                               setShowCreateModal(true);
                             }}
                           >
-                            + 새 스터디 일정 등록
+                            + 스터디 일정 등록
                           </button>
                         )}
 
                         <button
-                          className="btn btn-success btn-sm mb-3 ms-2"
+                          className="learn-more btn-spacing"
                           onClick={() => {
                             setCreateMode("personal");
                             setShowCreateModal(true);
                           }}
                         >
-                          + 일정 추가
+                          + 개인 일정 등록
                         </button>
 
                         <Calendar

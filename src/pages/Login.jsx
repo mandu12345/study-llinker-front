@@ -1,15 +1,29 @@
-import React, { useState, useContext } from "react";
+// src/pages/Login.jsx
+import React, { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../auth/AuthContext";
 import api from "../api/axios";
-import AlertModal from "./AlertModal";
+import "./LoginCustom.css";
+import AlertModal from "../components/AlertModal";
 
 const Login = () => {
+  const navigate = useNavigate();
+  const { login } = useContext(AuthContext);
+
+  const [mode, setMode] = useState("signin");
+
+  // 로그인 필드
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const { login } = useContext(AuthContext);
-  const navigate = useNavigate();
 
+  // 회원가입 필드
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [repeatPassword, setRepeatPassword] = useState("");
+  const [interestTags, setInterestTags] = useState([]);
+  const [newTag, setNewTag] = useState("");
+
+  // 모달 상태
   const [modal, setModal] = useState({
     show: false,
     title: "",
@@ -18,42 +32,55 @@ const Login = () => {
     redirect: null,
   });
 
-  const handleCloseModal = () => {
-    setModal({ show: false, title: "", message: "", type: "", redirect: null });
+  // 🔥 로그인 페이지에 들어올 때 배경 추가
+  useEffect(() => {
+    document.body.classList.add("login-background");
+
+    return () => {
+      document.body.classList.remove("login-background");
+    };
+  }, []);
+
+  const closeModal = () => {
     if (modal.redirect) navigate(modal.redirect);
+    setModal({
+      show: false,
+      title: "",
+      message: "",
+      type: "",
+      redirect: null,
+    });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // 태그 추가
+  const handleAddTag = () => {
+    if (newTag.trim() !== "" && !interestTags.includes(newTag.trim())) {
+      setInterestTags([...interestTags, newTag.trim()]);
+    }
+    setNewTag("");
+  };
 
+  // -------------------------
+  // 로그인
+  // -------------------------
+  const handleSignIn = async (e) => {
+    e.preventDefault();
     try {
       const res = await api.post("/auth/tokens", { username, password });
+
       const token = res.data.accessToken;
+      login(token);
 
-      if (!token) {
-        setModal({
-          show: true,
-          title: "로그인 실패",
-          message: "서버에서 토큰을 받지 못했습니다.",
-          type: "error",
-        });
-        return;
-      }
-
-      // JWT payload에서 role 추출
+      // JWT payload decode
       const payload = JSON.parse(atob(token.split(".")[1]));
       const role = payload.role;
 
-      // 토큰 저장 및 AuthContext 상태 업데이트
-      login(token);
-
-      // role 에 따라 이동 경로/메시지 분기
       if (role === "ADMIN") {
         setModal({
           show: true,
           title: "관리자 로그인 성공",
           message: "관리자 페이지로 이동합니다.",
-          type: "admin",
+          type: "success",
           redirect: "/admin",
         });
       } else {
@@ -66,55 +93,203 @@ const Login = () => {
         });
       }
     } catch (err) {
-      console.error("로그인 오류:", err);
       setModal({
         show: true,
-        title: "로그인 오류",
+        title: "로그인 실패",
         message: "아이디 또는 비밀번호가 올바르지 않습니다.",
+        type: "error",
+        redirect: null,
+      });
+    }
+  };
+
+  // -------------------------
+  // 회원가입
+  // -------------------------
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+
+    if (password !== repeatPassword) {
+      setModal({
+        show: true,
+        title: "오류",
+        message: "비밀번호가 일치하지 않습니다.",
+        type: "error",
+      });
+      return;
+    }
+
+    try {
+      await api.post("/users", {
+        username,
+        password,
+        email,
+        name,
+        interestTags,
+      });
+
+      setModal({
+        show: true,
+        title: "회원가입 완료",
+        message: "성공적으로 가입되었습니다! 로그인해주세요.",
+        type: "success",
+        redirect: "/login",
+      });
+
+      setMode("signin");
+    } catch (err) {
+      setModal({
+        show: true,
+        title: "회원가입 실패",
+        message: "이미 존재하는 아이디입니다.",
         type: "error",
       });
     }
   };
 
   return (
-    <div className="container mt-5">
-      <h2>로그인</h2>
-      <form onSubmit={handleSubmit}>
-        <div className="mb-3">
-          <label className="form-label">아이디</label>
+    <div className="container">
+      <h1>{mode === "signin" ? "SIGN IN" : "SIGN UP"}</h1>
+
+      {/* 탭 */}
+      <ul className="links tab-menu">
+        <li>
+          <a
+            onClick={() => setMode("signin")}
+            className={mode === "signin" ? "active" : ""}
+          >
+            SIGN IN
+          </a>
+        </li>
+        <li>
+          <a
+            onClick={() => setMode("signup")}
+            className={mode === "signup" ? "active" : ""}
+          >
+            SIGN UP
+          </a>
+        </li>
+        <li>
+          <a
+            className="reset-btn"
+            onClick={() => {
+              setUsername("");
+              setPassword("");
+              setRepeatPassword("");
+              setEmail("");
+              setName("");
+              setInterestTags([]);
+              setNewTag("");
+            }}
+          >
+            RESET
+          </a>
+        </li>
+      </ul>
+
+      {/* FORM */}
+      <form onSubmit={mode === "signin" ? handleSignIn : handleSignUp}>
+        {/* Username */}
+        <div
+          className={`input__block ${
+            mode === "signup" ? "signup-input__block" : "first-input__block"
+          }`}
+        >
           <input
             type="text"
-            className="form-control"
+            className="input"
+            placeholder="Username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
           />
         </div>
 
-        <div className="mb-3">
-          <label className="form-label">비밀번호</label>
+        {/* Password */}
+        <div className="input__block">
           <input
             type="password"
-            className="form-control"
+            className="input"
+            placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
         </div>
 
-        <button type="submit" className="btn btn-primary">
-          로그인
+        {/* 회원가입 입력 */}
+        {mode === "signup" && (
+          <>
+            <div className="input__block">
+              <input
+                type="password"
+                className="input"
+                placeholder="Repeat Password"
+                value={repeatPassword}
+                onChange={(e) => setRepeatPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="input__block">
+              <input
+                type="email"
+                className="input"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="input__block">
+              <input
+                type="text"
+                className="input"
+                placeholder="Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* 관심사 태그 표시 */}
+            <div className="tag-list-wrapper">
+              {interestTags.map((tag, idx) => (
+                <span key={idx} className="tag-button">
+                  {tag}
+                </span>
+              ))}
+            </div>
+
+            {/* 태그 입력 */}
+            <div className="input__block">
+              <input
+                type="text"
+                className="input"
+                placeholder="Add interest tag"
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+              />
+              <button
+                type="button"
+                className="addtag__btn"
+                onClick={handleAddTag}
+              >
+                + Add Tag
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* 제출 버튼 */}
+        <button className="signin__btn">
+          {mode === "signin" ? "Sign in" : "Sign up"}
         </button>
       </form>
 
-      <div className="mt-3">
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => navigate("/register")}
-        >
-          회원가입
-        </button>
+      <div className="separator">
+        <p>StudyLinker</p>
       </div>
 
       {/* 모달 */}
@@ -123,7 +298,7 @@ const Login = () => {
         title={modal.title}
         message={modal.message}
         type={modal.type}
-        onClose={handleCloseModal}
+        onClose={closeModal}
       />
     </div>
   );

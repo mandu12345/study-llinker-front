@@ -198,7 +198,7 @@ const Board = () => {
 
   return (
     <div>
-      <h2>게시판</h2>
+      <h2><strong>게시판</strong></h2>
       <br />
 
       {/* 탭 버튼 */}

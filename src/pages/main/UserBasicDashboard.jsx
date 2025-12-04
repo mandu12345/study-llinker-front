@@ -219,7 +219,7 @@ const UserBasicDashboard = () => {
   // --------------------------------------------------------
   return (
     <div className="container mb-4">
-      <h2 className="dashboard-title text-center my-4">사용자 대시보드</h2>
+      <h2 className="dashboard-title text-center my-4"><strong>사용자 대시보드</strong></h2>
 
       {loading && <p className="text-center mt-4">데이터 불러오는 중...</p>}
 
