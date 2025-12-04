@@ -196,32 +196,41 @@ const MainPage = () => {
     checkLeader();
   }, [userId]);
 
-  // ------------------------------
-  // 4) 지도 초기화 (Kakao Map)
-  // ------------------------------
+  // -----------------------------------------------------
+  // 지도 문제 해결 핵심: 페이지 이동 시 mapRef 초기화
+  // -----------------------------------------------------
   useEffect(() => {
-    if (!window.kakao || mapRef.current) return;
+    mapRef.current = null;  
+  }, [location.pathname]);   // 페이지 이동마다 초기화
+
+  // -----------------------------------------------------
+  // 지도 초기화 (항상 새로 렌더링)
+  // -----------------------------------------------------
+  useEffect(() => {
+    if (!window.kakao) return;
 
     window.kakao.maps.load(() => {
       const container = document.getElementById("map");
       if (!container) return;
 
+      // 항상 새 지도 생성
       mapRef.current = new window.kakao.maps.Map(container, {
         center: new window.kakao.maps.LatLng(37.5665, 126.9780),
         level: 6,
       });
     });
-  }, []);
+  }, [location.pathname]);   // 페이지 이동할 때마다 실행
 
-  // ⛳ 5) 마커 갱신 — 위치 or 일정 바뀔 때만
+  // -----------------------------------------------------
+  // 마커 갱신
+  // -----------------------------------------------------
   useEffect(() => {
     if (!mapRef.current) return;
 
-    // 기존 마커 제거
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
 
-    // 사용자 위치 마커
+    // 내 위치 마커
     if (userLocation) {
       const marker = new window.kakao.maps.Marker({
         map: mapRef.current,
@@ -231,6 +240,7 @@ const MainPage = () => {
         ),
       });
       markersRef.current.push(marker);
+
       mapRef.current.setCenter(
         new window.kakao.maps.LatLng(userLocation.lat, userLocation.lng)
       );
@@ -239,6 +249,7 @@ const MainPage = () => {
     // 스터디 위치 마커
     schedules.forEach((s) => {
       if (!s.lat || !s.lng) return;
+
       const marker = new window.kakao.maps.Marker({
         map: mapRef.current,
         position: new window.kakao.maps.LatLng(s.lat, s.lng),
@@ -247,8 +258,11 @@ const MainPage = () => {
     });
   }, [userLocation, schedules]);
 
-  // 사용자 위치 가져오기
+  // 사용자 위치 가져오기 
   useEffect(() => {
+    // MainPage 들어올 때만 위치 갱신
+    if (!location.pathname.startsWith("/main")) return;
+
     navigator.geolocation.getCurrentPosition(
       (pos) =>
         setUserLocation({
@@ -257,7 +271,7 @@ const MainPage = () => {
         }),
       (err) => console.error("위치 실패:", err)
     );
-  }, []);
+  }, [location.pathname]);
 
   // 날짜 하이라이트
   const highlightScheduleDates = ({ date }) => {
@@ -288,7 +302,7 @@ const MainPage = () => {
       try {
         const res = await api.get("/notifications");
         const mapped = res.data.map((n) => ({
-          id: n.notification_id,
+          id: n.notificationId,
           message: n.message,
           type: n.type,
           isRead: n.is_read, // ✅ DTO 필드명 is_read 기준으로 매핑

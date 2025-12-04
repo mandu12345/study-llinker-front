@@ -391,11 +391,6 @@ const StudyList = () => {
                       </span>
                     ))}
                   </div>
-
-                  <p>
-                    <strong>좌표:</strong> {selectedGroup.latitude},{" "}
-                    {selectedGroup.longitude}
-                  </p>
                 </div>
 
                 <div className="modal-footer">

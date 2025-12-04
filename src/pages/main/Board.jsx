@@ -14,6 +14,7 @@ const Board = () => {
   const [newComment, setNewComment] = useState({});
   const [comments, setComments] = useState({});
   const [reviewRatings, setReviewRatings] = useState({});
+  const [groupTitles, setGroupTitles] = useState({});
 
   const navigate = useNavigate();
 
@@ -29,6 +30,7 @@ const Board = () => {
       setPosts(list.filter((p) => p.type === targetTab));
 
       if (targetTab === "REVIEW") {
+        fetchGroupTitles(list);   // ⭐ 추가
         fetchReviewRatings(list);
       }
     } catch (err) {
@@ -59,6 +61,33 @@ const Board = () => {
       setComments((prev) => ({ ...prev, [postId]: res.data }));
     } catch (err) {
       console.error("댓글 조회 실패:", err);
+    }
+  };
+
+  // =============================
+  // 🔹 REVIEW 글 → 스터디명 조회
+  // =============================
+  const fetchGroupTitles = async (list) => {
+    try {
+      const reviewPosts = list.filter(
+        (p) => p.type === "REVIEW" && p.groupId
+      );
+
+      const titles = {};
+      await Promise.all(
+        reviewPosts.map(async (p) => {
+          try {
+            const res = await api.get(`/study-groups/${p.groupId}`);
+            titles[p.groupId] = res.data.title;
+          } catch (err) {
+            console.error("스터디명 조회 실패:", err);
+          }
+        })
+      );
+
+      setGroupTitles(titles);
+    } catch (err) {
+      console.error("스터디명 처리 실패:", err);
     }
   };
 
@@ -225,10 +254,15 @@ const Board = () => {
                     >
                       {p.title}
                     </h5>
-
+                    {tab === "REVIEW" && (
+                      <p className="text-muted" style={{ marginBottom: "4px" }}>
+                        스터디명:{" "}
+                        <strong>{groupTitles[p.groupId] || "불러오는 중..."}</strong>
+                      </p>
+                    )}
                     {tab === "REVIEW" && ratingInfo && ratingInfo.avg && (
                       <p>
-                        ⭐ 평점: {ratingInfo.avg.toFixed(1)}/5 ({ratingInfo.count}개)
+                        ⭐ 평점: {ratingInfo.avg.toFixed(1)}
                       </p>
                     )}
 

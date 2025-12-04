@@ -13,6 +13,7 @@ const BoardDetail = () => {
 
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
+  const [groupInfo, setGroupInfo] = useState(null);
 
   // 🔥 로그인 유저 ID 가져오기 (userId가 맞는 필드)
   useEffect(() => {
@@ -25,26 +26,44 @@ const BoardDetail = () => {
       .catch(() => {});
   }, []);
 
-  // 게시글 · 댓글 로드
-  useEffect(() => {
-    const load = async () => {
-      try {
-        // 게시글
-        const res = await api.get(`/study-posts/${postId}`);
-        setPost(res.data);
+  // 게시글 · 댓글 로드 + (REVIEW 게시글일 경우 스터디 정보 로드)
+useEffect(() => {
+  const load = async () => {
+    try {
+      // 1) 게시글 조회
+      const res = await api.get(`/study-posts/${postId}`);
+      const postData = res.data;
+      setPost(postData);
 
-        // 댓글
-        const cRes = await api.get(`/study-posts/${postId}/comments`);
-        setComments(cRes.data);
-      } catch (err) {
-        console.error("불러오기 실패:", err);
-      } finally {
-        setLoading(false);
+      // ⭐ groupId가 올바르게 전달되는지 확인
+      const gid = postData.groupId ?? postData.group_id;
+      console.log("📌 [DEBUG] gid 최종값:", gid);
+
+      // 2) REVIEW + groupId 있을 때만 스터디 정보 조회
+      if (postData.type === "REVIEW" && gid) {
+        try {
+          const gRes = await api.get(`/study-groups/${gid}`);
+          setGroupInfo(gRes.data);
+        } catch (err) {
+          console.error("❌ 스터디 정보 조회 실패:", err);
+        }
+      } else {
+        console.log("⚠ REVIEW가 아니거나 groupId 없음 → 스터디 정보 조회 안 함");
       }
-    };
 
-    load();
-  }, [postId]);
+      // 3) 댓글 조회
+      const cRes = await api.get(`/study-posts/${postId}/comments`);
+      setComments(cRes.data);
+    } catch (err) {
+      console.error("❌ 게시글/댓글 불러오기 실패:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  load();
+}, [postId]);
+
 
   if (loading || !post) return <p>로딩 중...</p>;
 
@@ -123,6 +142,12 @@ const BoardDetail = () => {
           <p className="text-muted">
             작성자: {post.leaderName || "익명"}
           </p>
+
+          {post.type === "REVIEW" && groupInfo && (
+            <p className="text-muted">
+              스터디명: <strong>{groupInfo.title}</strong>
+            </p>
+          )}
 
           {/* 🔥 게시글 작성자만 수정/삭제 가능 */}
           {post.leaderId === userId && (

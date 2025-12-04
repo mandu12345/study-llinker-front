@@ -42,18 +42,28 @@ const MyPage = () => {
 
       for (const g of groups) {
         try {
+          // 1) 내가 가입한 그룹인지 확인
           const memRes = await api.get(
             `/study-groups/${g.groupId}/members/${userId}`
           );
+
           if (memRes.data && memRes.data.status === "APPROVED") {
+
+            // 2) 리더 정보 조회
+            const leaderRes = await api.get(
+              `/study-groups/${g.groupId}/leader`
+            );
+
+            const leaderName = leaderRes.data?.name || "(알 수 없음)";
+
             myGroups.push({
               ...g,
               status: memRes.data.status,
-              leaderName: memRes.data.leaderName || g.leaderName,
+              leaderName: leaderName,   // 🔥 리더 이름 정상 주입
             });
           }
         } catch (err) {
-          // 가입 안된 그룹 → 무시
+          // 가입 안 된 그룹 → 무시
         }
       }
 

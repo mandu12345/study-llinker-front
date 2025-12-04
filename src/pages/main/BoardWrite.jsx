@@ -81,11 +81,17 @@ const BoardWrite = ({ defaultType }) => {
   // ============================
   // 저장 (작성 + 수정)
   // ============================
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!title.trim() || !content.trim()) {
       alert("제목과 내용을 입력하세요.");
+      return;
+    }
+
+    // 🔹 REVIEW 타입일 때 후기 대상 스터디 선택 필수 체크 (추가)
+    if (type === "REVIEW" && !selectedGroupId) {
+      alert("후기 대상 스터디를 선택하세요.");
       return;
     }
 
@@ -96,7 +102,8 @@ const BoardWrite = ({ defaultType }) => {
           title,
           content,
           type,
-          groupId: type === "REVIEW" ? selectedGroupId : null,
+          // 🔹 REVIEW일 때 groupId를 숫자로 변환해서 전송 (수정)
+          groupId: type === "REVIEW" ? Number(selectedGroupId) : null,
         });
 
         alert("게시글 수정 완료!");
@@ -110,7 +117,8 @@ const BoardWrite = ({ defaultType }) => {
         content,
         type,
         leaderId: userId,
-        groupId: type === "REVIEW" ? selectedGroupId : null,
+        // 🔹 REVIEW일 때 groupId를 숫자로 변환해서 전송 (수정)
+        groupId: type === "REVIEW" ? Number(selectedGroupId) : null,
         maxMembers: 0,
         studyDate: null,
         location: null,
@@ -126,6 +134,13 @@ const BoardWrite = ({ defaultType }) => {
         return;
       }
 
+      // 후기(REVIEW)일 때 평점 미입력 방지
+      if (type === "REVIEW" && !rating) {
+        alert("평점을 선택해야 합니다!");
+        return;
+      }
+
+      // 후기글인 경우 리뷰 추가 생성
       if (type === "REVIEW") {
         await api.post(`/study-posts/${newId}/reviews`, {
           rating,
@@ -173,15 +188,22 @@ const BoardWrite = ({ defaultType }) => {
 
         {type === "REVIEW" && (
           <>
-            <label className="form-label">평점 (1~5)</label>
-            <input
-              type="number"
-              min="1"
-              max="5"
-              className="form-control mb-3"
-              value={rating}
-              onChange={(e) => setRating(Number(e.target.value))}
-            />
+            <label className="form-label">평점</label>
+            <div className="mb-3">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <span
+                  key={star}
+                  style={{
+                    cursor: "pointer",
+                    fontSize: "24px",
+                    color: star <= rating ? "#ffc107" : "#e4e5e9",
+                  }}
+                  onClick={() => setRating(star)}
+                >
+                  ★
+                </span>
+              ))}
+            </div>
 
             <label className="form-label">후기 대상 스터디</label>
             <select

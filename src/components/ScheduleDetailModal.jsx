@@ -25,15 +25,28 @@ const ScheduleDetailModal = ({ scheduleId, onClose, userId, onOpenAttendance }) 
 
         const gid = sc.groupId ?? sc.group_id ?? null;
 
-        // 🔥 스터디 일정이면 그룹 정보 조회
+        // 스터디 일정이면 그룹 정보 조회
         if (gid) {
           try {
             const gRes = await api.get(`/study-groups/${gid}`);
-            setGroupInfo(gRes.data); 
+            setGroupInfo(gRes.data);
           } catch (err) {
             console.error("그룹 정보 조회 실패:", err);
           }
+
+          // 리더 정보 별도 조회
+          try {
+            const leaderRes = await api.get(`/study-groups/${gid}/leader`);
+            setGroupInfo((prev) => ({
+              ...prev,
+              leaderId: leaderRes.data.userId,
+              leaderName: leaderRes.data.name,
+            }));
+          } catch (err) {
+            console.error("리더 정보 조회 실패:", err);
+          }
         }
+
       } catch (err) {
         console.error("상세조회 실패:", err);
       } finally {
