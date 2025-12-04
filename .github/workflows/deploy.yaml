@@ -40,7 +40,7 @@ jobs:
           
           # deployment.yaml 수정
           # 여기는 이미 슬래시가 잘 들어가 있었네요. (Docker Hub 레포 이름이 p_frontend가 맞는지 확인하세요)
-          sed -i "s|image: .*|image: ${DOCKER_USER}/p_frontend:${{ github.sha }}|g" deployment.yaml
+          sed -i "s|image: .*|image: ${DOCKER_USER}/p_frontend:${{ github.sha }}|g" web-deployment.yaml
           
           git config user.name "CI Bot"
           git config user.email "ci@bot.com"
