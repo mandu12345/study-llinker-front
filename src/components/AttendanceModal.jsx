@@ -103,21 +103,23 @@ const AttendanceModal = ({ scheduleId, onClose }) => {
       <div className="modal-dialog modal-lg modal-dialog-centered">
         <div className="modal-content">
           {/* 헤더 */}
-          <div className="modal-header bg-success text-white">
+          <div
+            className="modal-header"
+            style={{
+              backgroundColor: "#C8F7DC",   // 파스텔 초록
+              color: "#2F6F4E"              // 진한 포인트 초록
+            }}
+          >
             <h5 className="modal-title">
               📋 출석 관리
-              {schedule && (
-                <span className="ms-2">
-                  ({schedule.title})
-                </span>
-              )}
+              {schedule && <span className="ms-2">({schedule.title})</span>}
             </h5>
+
             <button
-              className="btn-close btn-close-white"
+              className="btn-close"
               onClick={onClose}
             ></button>
           </div>
-
           {/* 바디 */}
           <div className="modal-body">
             {loading && <p>로딩 중...</p>}
@@ -170,35 +172,32 @@ const AttendanceModal = ({ scheduleId, onClose }) => {
 
           <div className="modal-footer">
             <button
-              className="btn btn-success btn-sm"
-              onClick={async () => {
-                try {
-                  const entries = Object.entries(statusMap);
+            className="btn btn-sm"
+            style={{
+              backgroundColor: "#C8F7DC",
+              color: "#2F6F4E",
+              border: "1px solid #A8E6C4",
+              fontWeight: "600"
+            }}
+            onClick={async () => {
+              try {
+                const entries = Object.entries(statusMap);
 
-                  // 상태별 모두 서버 반영
-                  for (const [userId, status] of entries) {
-                    if (!status) continue;
-                    await api.post("/attendance", {
-                      scheduleId,
-                      userId,
-                      status,
-                    });
-                  }
-
-                  alert("출석 정보가 저장되었습니다!");
-                  onClose();
-                } catch (err) {
-                  console.error("출석 저장 실패:", err);
-                  alert("출석 저장 중 오류가 발생했습니다.");
+                for (const [userId, status] of entries) {
+                  if (!status) continue;
+                  await api.post("/attendance", { scheduleId, userId, status });
                 }
-              }}
-            >
-              출석 저장
-            </button>
 
-            <button className="btn btn-secondary btn-sm" onClick={onClose}>
-              닫기
-            </button>
+                alert("출석 정보가 저장되었습니다!");
+                onClose();
+              } catch (err) {
+                console.error("출석 저장 실패:", err);
+                alert("출석 저장 중 오류가 발생했습니다.");
+              }
+            }}
+          >
+            출석 저장
+          </button>
 
           </div>
         </div>

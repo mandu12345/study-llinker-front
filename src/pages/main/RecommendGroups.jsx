@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../api/axios";
+import "./StudyListButtons.css";
 
 const RecommendGroups = () => {
   const [algorithm, setAlgorithm] = useState("locationNLP");
@@ -268,22 +269,31 @@ const RecommendGroups = () => {
                     </p>
 
                     <div className="d-flex justify-content-between">
+
+                      {/* 상세보기 버튼 (파스텔 보라 Outline) */}
                       <button
-                        className="btn btn-outline-primary btn-sm"
+                        className="study-btn study-btn-detail"
                         onClick={() => {
                           setSelectedGroup(group);
                           setShowModal(true);
                         }}
                       >
                         상세보기
+                        <span className="icon-box">
+                          <i className="bi bi-arrow-right"></i>
+                        </span>
                       </button>
 
+                      {/* 참여 신청 버튼 (Solid 파스텔 보라) */}
                       {id && (
                         <button
-                          className="btn btn-primary btn-sm"
+                          className="study-btn study-btn-join"
                           onClick={() => handleJoin(id)}
                         >
                           참여 신청
+                          <span className="icon-box">
+                            <i className="bi bi-check2-circle"></i>
+                          </span>
                         </button>
                       )}
                     </div>

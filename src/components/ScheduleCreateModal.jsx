@@ -120,94 +120,114 @@ const ScheduleCreateModal = ({
 
   return (
     <div className="modal d-block" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
-      <div className="modal-dialog">
-        <form className="modal-content" onSubmit={handleSubmit}>
-          <div className="modal-header bg-primary text-white">
-            <h5 className="modal-title">
-              {isUpdate
-                ? "일정 수정"
-                : isStudyMode
-                ? "새 스터디 일정 등록"
-                : "새 일정 등록"}
-            </h5>
-            <button className="btn-close btn-close-white" onClick={onClose}></button>
-          </div>
+  <div className="modal-dialog">
+    <form className="modal-content" onSubmit={handleSubmit}>
 
-          <div className="modal-body">
-
-            <input
-              className="form-control mb-2"
-              value={title}
-              placeholder="제목"
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
-
-            <input
-              type="date"
-              className="form-control mb-2"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-            />
-
-            {isStudyMode && (
-              <>
-                {/* 🔽 어떤 스터디의 일정인지 선택 */}
-                <label className="form-label">어떤 스터디의 일정인가요?</label>
-                <select
-                  className="form-select mb-2"
-                  value={selectedGroupId || ""}
-                  onChange={(e) => setSelectedGroupId(Number(e.target.value))}
-                  required
-                >
-                  <option value="">스터디 선택</option>
-                  {leaderGroups.map((g) => (
-                    <option key={g.groupId} value={g.groupId}>
-                      {g.title}
-                    </option>
-                  ))}
-                </select>
-
-                {/* 🔽 시간 선택(스터디 일정에만) */}
-                <input
-                  type="time"
-                  className="form-control mb-2"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                />
-              </>
-            )}
-
-            <input
-              className="form-control mb-2"
-              value={location}
-              placeholder="장소"
-              onChange={(e) => setLocation(e.target.value)}
-            />
-
-            <textarea
-              className="form-control mb-2"
-              rows={3}
-              value={description}
-              placeholder="설명"
-              onChange={(e) => setDescription(e.target.value)}
-            />
-
-          </div>
-
-          <div className="modal-footer">
-            <button className="btn btn-secondary btn-sm" onClick={onClose}>
-              취소
-            </button>
-            <button className="btn btn-success btn-sm" type="submit">
-              {isUpdate ? "수정 완료" : "등록"}
-            </button>
-          </div>
-
-        </form>
+      {/* 🔵 파스텔 파랑 헤더 */}
+      <div
+        className="modal-header"
+        style={{
+          backgroundColor: "#cfe8ff",
+          color: "#0d6efd",
+          borderBottom: "1px solid #b6d8ff",
+        }}
+      >
+        <h5 className="modal-title">
+          {isUpdate
+            ? "일정 수정"
+            : isStudyMode
+            ? "새 스터디 일정 등록"
+            : "새 일정 등록"}
+        </h5>
+        <button className="btn-close" onClick={onClose}></button>
       </div>
-    </div>
+
+      <div className="modal-body">
+        <input
+          className="form-control mb-2"
+          value={title}
+          placeholder="제목"
+          onChange={(e) => setTitle(e.target.value)}
+          required
+        />
+
+        <input
+          type="date"
+          className="form-control mb-2"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          required
+        />
+
+        {isStudyMode && (
+          <>
+            <label className="form-label">어떤 스터디의 일정인가요?</label>
+            <select
+              className="form-select mb-2"
+              value={selectedGroupId || ""}
+              onChange={(e) => setSelectedGroupId(Number(e.target.value))}
+              required
+            >
+              <option value="">스터디 선택</option>
+              {leaderGroups.map((g) => (
+                <option key={g.groupId} value={g.groupId}>
+                  {g.title}
+                </option>
+              ))}
+            </select>
+
+            <input
+              type="time"
+              className="form-control mb-2"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+          </>
+        )}
+
+        <input
+          className="form-control mb-2"
+          value={location}
+          placeholder="장소"
+          onChange={(e) => setLocation(e.target.value)}
+        />
+
+        <textarea
+          className="form-control mb-2"
+          rows={3}
+          value={description}
+          placeholder="설명"
+          onChange={(e) => setDescription(e.target.value)}
+        />
+      </div>
+
+      {/* 🔽 버튼 영역 */}
+      <div className="modal-footer">
+
+        {/* 취소 버튼 (기존 회색 유지) */}
+        <button className="btn btn-secondary btn-sm" onClick={onClose}>
+          취소
+        </button>
+
+        {/* 🟢 파스텔 초록 등록 버튼 */}
+        <button
+          className="btn btn-sm"
+          type="submit"
+          style={{
+            backgroundColor: "#d5f5e3",
+            color: "#157347",
+            border: "1px solid #b3e6c9",
+            fontWeight: 600,
+          }}
+        >
+          {isUpdate ? "수정 완료" : "등록"}
+        </button>
+      </div>
+
+    </form>
+  </div>
+</div>
+
   );
 };
 

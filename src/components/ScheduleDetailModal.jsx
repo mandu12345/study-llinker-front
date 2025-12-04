@@ -123,19 +123,47 @@ const ScheduleDetailModal = ({ scheduleId, onClose, userId, onOpenAttendance }) 
           </div>
 
           <div className="modal-footer d-flex justify-content-between">
-
             {isStudySchedule && isLeader && (
               <>
+                {/* 출석 체크 → 파스텔 초록 */}
                 <button
-                  className="btn btn-success"
+                  className="btn"
+                  style={{
+                    backgroundColor: "#C8F7C5", // 파스텔 그린
+                    color: "#1B7F4C",
+                    border: "1px solid #A8E6A3",
+                    fontWeight: "600"
+                  }}
                   onClick={() => onOpenAttendance && onOpenAttendance(scheduleId)}
                 >
                   출석 체크
                 </button>
-                <button className="btn btn-primary" onClick={handleUpdate}>
+
+                {/* 수정 → 파스텔 블루 */}
+                <button
+                  className="btn"
+                  style={{
+                    backgroundColor: "#D6E8FF", // 파스텔 블루
+                    color: "#1A4FA3",
+                    border: "1px solid #B6D4FF",
+                    fontWeight: "600"
+                  }}
+                  onClick={handleUpdate}
+                >
                   수정
                 </button>
-                <button className="btn btn-danger" onClick={handleDelete}>
+
+                {/* 삭제 → 파스텔 레드 */}
+                <button
+                  className="btn"
+                  style={{
+                    backgroundColor: "#FFD6D6", // 파스텔 레드
+                    color: "#B00020",
+                    border: "1px solid #FFB3B3",
+                    fontWeight: "600"
+                  }}
+                  onClick={handleDelete}
+                >
                   삭제
                 </button>
               </>
@@ -147,15 +175,36 @@ const ScheduleDetailModal = ({ scheduleId, onClose, userId, onOpenAttendance }) 
 
             {!isStudySchedule && (
               <>
-                <button className="btn btn-primary" onClick={handleUpdate}>
+                {/* 개인 일정 수정 / 삭제도 동일 파스텔 버튼 사용 */}
+                <button
+                  className="btn"
+                  style={{
+                    backgroundColor: "#D6E8FF",
+                    color: "#1A4FA3",
+                    border: "1px solid #B6D4FF",
+                    fontWeight: "600"
+                  }}
+                  onClick={handleUpdate}
+                >
                   수정
                 </button>
-                <button className="btn btn-danger" onClick={handleDelete}>
+
+                <button
+                  className="btn"
+                  style={{
+                    backgroundColor: "#FFD6D6",
+                    color: "#B00020",
+                    border: "1px solid #FFB3B3",
+                    fontWeight: "600"
+                  }}
+                  onClick={handleDelete}
+                >
                   삭제
                 </button>
               </>
             )}
           </div>
+
         </div>
       </div>
     </div>

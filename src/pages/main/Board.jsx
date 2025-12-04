@@ -242,111 +242,44 @@ const Board = () => {
 
       {/* 게시글 목록 */}
       {posts.length > 0 ? (
-        <ul className="list-group">
-          {posts.map((p) => {
-            const ratingInfo = reviewRatings[p.postId];
+        <table className="table table-hover">
+          <thead className="table-light">
+            <tr>
+              <th style={{ width: "8%" }}>No</th>
+              <th style={{ width: "55%" }}>제목</th>
+              <th style={{ width: "15%" }}>글쓴이</th>
+              <th style={{ width: "20%" }}>작성시간</th>
+            </tr>
+          </thead>
+          <tbody>
+            {posts.map((p, index) => {
+              // 날짜 YYYY-MM-DD 로 변환
+              const date = p.createdAt ? p.createdAt.slice(0, 10) : "-";
 
-            return (
-              <li key={p.postId} className="list-group-item mb-2">
-                <div className="d-flex justify-content-between">
-                  <div>
-                    <h5
-                      style={{ cursor: "pointer", color: "#0d6efd" }}
-                      onClick={() => navigate(`/main/board/detail/${p.postId}`)}
-                    >
-                      {p.title}
-                    </h5>
-                    {tab === "REVIEW" && (
-                      <p className="text-muted" style={{ marginBottom: "4px" }}>
-                        스터디명:{" "}
-                        <strong>{groupTitles[p.groupId] || "불러오는 중..."}</strong>
-                      </p>
+              return (
+                <tr
+                  key={p.postId}
+                  style={{ cursor: "pointer" }}
+                  onClick={() => navigate(`/main/board/detail/${p.postId}`)}
+                >
+                  <td>{posts.length - index}</td>
+
+                  <td>
+                    {p.title}
+                    {tab === "REVIEW" && groupTitles[p.groupId] && (
+                      <span className="text-muted ms-2" style={{ fontSize: "0.8rem" }}>
+                        ({groupTitles[p.groupId]})
+                      </span>
                     )}
-                    {tab === "REVIEW" && ratingInfo && ratingInfo.avg && (
-                      <p>
-                        ⭐ 평점: {ratingInfo.avg.toFixed(1)}
-                      </p>
-                    )}
+                  </td>
 
-                    <p className="text-muted">
-                      {p.leaderName || "작성자 정보 없음"} | {p.createdAt}
-                    </p>
-
-                    <p>{p.content}</p>
-                  </div>
-
-                  <button
-                    className="btn btn-sm btn-outline-danger"
-                    onClick={() => handleReport(p.postId)}
-                  >
-                    🚨 신고
-                  </button>
-                </div>
-
-                {/* 댓글 영역 */}
-                <div className="mt-3">
-                  <h6>댓글</h6>
-
-                  {/* 댓글 불러오기 버튼 */}
-                  {comments[p.postId] === undefined && (
-                    <button
-                      className="btn btn-sm btn-outline-secondary"
-                      onClick={() => fetchComments(p.postId)}
-                    >
-                      댓글 불러오기
-                    </button>
-                  )}
-
-                  {/* 댓글 목록 */}
-                  <ul className="list-group mb-2">
-                    {(comments[p.postId] || []).map((c) => (
-                      <li
-                        key={c.commentId}
-                        className="list-group-item d-flex justify-content-between"
-                      >
-                        <span>
-                          <strong>{c.userName || `사용자 ${c.userId}`}</strong>:{" "}
-                          {c.content}
-                          <br />
-                          <small className="text-muted">{c.createdAt}</small>
-                        </span>
-                        <button
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() =>
-                            handleDeleteComment(p.postId, c.commentId)
-                          }
-                        >
-                          삭제
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* 댓글 입력 */}
-                  <div className="input-group">
-                    <input
-                      className="form-control"
-                      value={newComment[p.postId] || ""}
-                      onChange={(e) =>
-                        setNewComment((prev) => ({
-                          ...prev,
-                          [p.postId]: e.target.value,
-                        }))
-                      }
-                      placeholder="댓글 입력"
-                    />
-                    <button
-                      className="btn btn-outline-primary"
-                      onClick={() => handleAddComment(p.postId)}
-                    >
-                      등록
-                    </button>
-                  </div>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                  <td>{p.leaderName || "익명"}</td>
+                  <td>{date}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       ) : (
         <p>게시글이 없습니다.</p>
       )}

@@ -242,7 +242,7 @@ const MainPage = () => {
         new window.kakao.maps.LatLng(userLocation.lat, userLocation.lng)
       );
     }
-    
+
     // ⭐ 스터디 전용 마커 이미지
     const studyMarkerImg = new window.kakao.maps.MarkerImage(
       "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png",
@@ -492,7 +492,7 @@ const MainPage = () => {
                             setShowCreateModal(true);
                           }}
                         >
-                          + 스터디 일정 등록
+                          ➕ 스터디 일정 등록
                         </button>
                       )}
 
@@ -503,7 +503,7 @@ const MainPage = () => {
                           setShowCreateModal(true);
                         }}
                       >
-                        + 개인 일정 등록
+                        ➕ 개인 일정 등록
                       </button>
                     </div>
                   </div>
