@@ -85,7 +85,7 @@ const MainPage = () => {
         console.log("[MainPage] /users/profile 응답:", res.data);
 
         setUserId(res.data.userId);
-        setUsername(res.data.username);
+        setUsername(res.data.name);
 
         // Dashboard 등에서 userId를 localStorage로도 쓰는 경우 대비
         localStorage.setItem("userId", res.data.userId);
@@ -110,7 +110,6 @@ const MainPage = () => {
 
       const processed = await Promise.all(
         res.data.map(async (s) => {
-          // ✅ 백엔드 DTO 기준: MyScheduleResponse (scheduleId, groupId, startTime, ...)
           const scheduleId = s.scheduleId;
           const groupId = s.groupId ?? null;
 
@@ -138,13 +137,14 @@ const MainPage = () => {
             id: scheduleId,
             groupId,
             title: s.title,
+            groupTitle: group?.title || s.title,
             content: s.description, // DTO에는 없을 수 있지만 기존 코드 유지
             location: s.location,
-            date: new Date(s.startTime), // ✅ MyScheduleResponse.startTime (LocalDateTime/Timestamp)
+            date: new Date(s.startTime), 
             isJoined: true,
             lat: group?.latitude ?? null,
             lng: group?.longitude ?? null,
-            leaderName: group?.leaderName || "", // ✅ DTO 기준: leaderName 사용
+            leaderName: group?.leaderName || "", 
           };
         })
       );
@@ -185,9 +185,6 @@ const MainPage = () => {
         // 2) 일정 등록 모달에서 사용할 리더 스터디 목록 설정
         setLeaderGroups(myLeaderGroups);
 
-        console.log("📌 내가 리더인 스터디 목록:", myLeaderGroups);
-        console.log("📌 리더 여부:", myLeaderGroups.length > 0);
-
       } catch (e) {
         console.error("리더 여부 체크 실패:", e);
       }
@@ -227,33 +224,52 @@ const MainPage = () => {
   useEffect(() => {
     if (!mapRef.current) return;
 
+    // 기존 마커 제거
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
 
-    // 내 위치 마커
+    // 🔵 내 위치 마커 (기존 유지)
     if (userLocation) {
-      const marker = new window.kakao.maps.Marker({
+      const myMarker = new window.kakao.maps.Marker({
         map: mapRef.current,
         position: new window.kakao.maps.LatLng(
           userLocation.lat,
           userLocation.lng
         ),
       });
-      markersRef.current.push(marker);
+      markersRef.current.push(myMarker);
 
       mapRef.current.setCenter(
         new window.kakao.maps.LatLng(userLocation.lat, userLocation.lng)
       );
     }
 
-    // 스터디 위치 마커
+    // ⭐ 스터디 전용 마커 이미지
+    const studyMarkerImg = new window.kakao.maps.MarkerImage(
+      "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png",
+      new window.kakao.maps.Size(24, 35)
+    );
+
+    // 🔴 스터디 위치 마커 + 클릭 시 InfoWindow 표시
     schedules.forEach((s) => {
       if (!s.lat || !s.lng) return;
 
       const marker = new window.kakao.maps.Marker({
         map: mapRef.current,
         position: new window.kakao.maps.LatLng(s.lat, s.lng),
+        image: studyMarkerImg, // ⭐ 커스텀 마커 적용
       });
+
+      // InfoWindow 생성
+      const infoWindow = new window.kakao.maps.InfoWindow({
+        content: `<div style="padding:5px;font-size:14px;">${s.groupTitle}</div>`
+      });
+
+      // 마커 클릭 이벤트 → 스터디 이름 표시
+      window.kakao.maps.event.addListener(marker, "click", () => {
+        infoWindow.open(mapRef.current, marker);
+      });
+
       markersRef.current.push(marker);
     });
   }, [userLocation, schedules]);
