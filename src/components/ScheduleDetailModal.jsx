@@ -1,13 +1,11 @@
 // src/components/ScheduleDetailModal.jsx
 import React, { useEffect, useState } from "react";
 import api from "../api/axios";
-import AttendanceModal from "./AttendanceModal";
 
-const ScheduleDetailModal = ({ scheduleId, onClose, userId }) => {
+const ScheduleDetailModal = ({ scheduleId, onClose, userId, onOpenAttendance }) => {
   const [schedule, setSchedule] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  const [groupInfo, setGroupInfo] = useState(null);
 
   // 헬퍼: snake_case / camelCase 모두 대응
   const get = (obj, ...keys) => {
@@ -22,24 +20,38 @@ const ScheduleDetailModal = ({ scheduleId, onClose, userId }) => {
     const load = async () => {
       try {
         const res = await api.get(`/study-schedules/${scheduleId}`);
-        setSchedule(res.data);
+        const sc = res.data;
+        setSchedule(sc);
+
+        const gid = sc.groupId ?? sc.group_id ?? null;
+
+        // 🔥 스터디 일정이면 그룹 정보 조회
+        if (gid) {
+          try {
+            const gRes = await api.get(`/study-groups/${gid}`);
+            setGroupInfo(gRes.data); 
+          } catch (err) {
+            console.error("그룹 정보 조회 실패:", err);
+          }
+        }
       } catch (err) {
         console.error("상세조회 실패:", err);
       } finally {
         setLoading(false);
       }
     };
+
     load();
   }, [scheduleId]);
 
   if (loading || !schedule) return null;
 
   // camelCase / snakeCase 대응
-  const groupId = get(schedule, "groupId", "group_id");
-  const leaderId = get(schedule, "groupLeaderId", "group_leader_id");
-  const leaderName = get(schedule, "groupLeaderName", "group_leader_name");
+  const gid = groupInfo?.groupId ?? groupInfo?.group_id ?? null;
+  const leaderId = groupInfo?.leaderId ?? null;
+  const leaderName = groupInfo?.leaderName ?? "정보 없음";
 
-  const isStudySchedule = groupId !== null;
+  const isStudySchedule = gid !== null;
   const isLeader = leaderId === userId;
 
   // 삭제
@@ -89,7 +101,8 @@ const ScheduleDetailModal = ({ scheduleId, onClose, userId }) => {
             {isStudySchedule ? (
               <>
                 <p className="mt-2"><strong>📚 스터디 일정</strong></p>
-                <p><strong>리더:</strong> {leaderName || "정보 없음"}</p>
+                <p><strong>스터디:</strong> {groupInfo?.title || "이름 없음"}</p>
+                <p><strong>리더:</strong> {leaderName}</p>
               </>
             ) : (
               <p><strong>👤 개인 일정</strong></p>
@@ -102,7 +115,7 @@ const ScheduleDetailModal = ({ scheduleId, onClose, userId }) => {
               <>
                 <button
                   className="btn btn-success"
-                  onClick={() => setShowAttendanceModal(true)}
+                  onClick={() => onOpenAttendance && onOpenAttendance(scheduleId)}
                 >
                   출석 체크
                 </button>
@@ -132,17 +145,6 @@ const ScheduleDetailModal = ({ scheduleId, onClose, userId }) => {
           </div>
         </div>
       </div>
-
-      {showAttendanceModal && (
-        <AttendanceModal
-          schedule={{
-            id: scheduleId,
-            title: schedule.title,
-            groupId,
-          }}
-          onClose={() => setShowAttendanceModal(false)}
-        />
-      )}
     </div>
   );
 };

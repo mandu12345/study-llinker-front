@@ -5,6 +5,7 @@ import api from "../api/axios";
 const ScheduleCreateModal = ({
   mode,               // "study" | "personal" | "update"
   groupId = null,
+  leaderGroups = [],   // ★ 추가
   baseDate = null,    // YYYY-MM-DD
   scheduleData = null,
   onClose,
@@ -23,6 +24,8 @@ const ScheduleCreateModal = ({
 
   const [date, setDate] = useState(baseDate || "");
   const [time, setTime] = useState("");
+  
+  const [selectedGroupId, setSelectedGroupId] = useState(groupId);
 
   // -------------------------------
   // 🔥 수정 모드일 때 기존 일정 값 세팅 (camelCase 대응)
@@ -90,7 +93,12 @@ const ScheduleCreateModal = ({
       // CREATE — 스터디 일정
       // -------------------------------
       else if (isStudyMode) {
-        await api.post(`/study-groups/${groupId}/schedules`, body);
+        if (!selectedGroupId) {
+          alert("어떤 스터디의 일정인지 선택하세요.");
+          return;
+        }
+
+        await api.post(`/study-groups/${selectedGroupId}/schedules`, body);
         alert("스터디 일정 등록 완료");
       }
 
@@ -144,12 +152,31 @@ const ScheduleCreateModal = ({
             />
 
             {isStudyMode && (
-              <input
-                type="time"
-                className="form-control mb-2"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-              />
+              <>
+                {/* 🔽 어떤 스터디의 일정인지 선택 */}
+                <label className="form-label">어떤 스터디의 일정인가요?</label>
+                <select
+                  className="form-select mb-2"
+                  value={selectedGroupId || ""}
+                  onChange={(e) => setSelectedGroupId(Number(e.target.value))}
+                  required
+                >
+                  <option value="">스터디 선택</option>
+                  {leaderGroups.map((g) => (
+                    <option key={g.groupId} value={g.groupId}>
+                      {g.title}
+                    </option>
+                  ))}
+                </select>
+
+                {/* 🔽 시간 선택(스터디 일정에만) */}
+                <input
+                  type="time"
+                  className="form-control mb-2"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                />
+              </>
             )}
 
             <input

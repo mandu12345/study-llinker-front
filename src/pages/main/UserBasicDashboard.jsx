@@ -134,11 +134,19 @@ const UserBasicDashboard = () => {
   endOfWeek.setHours(23, 59, 59, 999);
 
   const weeklySchedules = schedules.filter((s) => {
-    const start = getStart(s);
-    if (!start) return false;
-    const d = new Date(start);
-    return d >= startOfWeek && d <= endOfWeek;
-  });
+  const start = getStart(s);
+  if (!start) return false;
+
+  const d = new Date(start);
+
+  const gid = s.groupId ?? s.group_id;
+  if (!gid) return false; // 🔥 개인 일정 제외
+
+  if (d < new Date()) return false; // 🔥 이미 지난 일정 제외
+
+  return d >= startOfWeek && d <= endOfWeek;
+});
+
 
   const target = weeklySchedules.length;
   const done = weeklySchedules.filter((s) => {

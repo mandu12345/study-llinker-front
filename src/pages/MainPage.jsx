@@ -41,6 +41,9 @@ const MainPage = () => {
   // 리더 여부
   const [isLeader, setIsLeader] = useState(false);
 
+  // 리더인 그룹 목록 저장
+  const [leaderGroups, setLeaderGroups] = useState([]);
+
   // 일정
   const [schedules, setSchedules] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -52,7 +55,6 @@ const MainPage = () => {
 
   // 일정 등록 모달
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [selectedGroupId] = useState(null);
   const [createMode, setCreateMode] = useState(null);  
 
   // 출석 모달
@@ -174,10 +176,18 @@ const MainPage = () => {
         const res = await api.get("/study-groups");
         const groups = res.data || [];
 
-        const amLeader = groups.some(g => g.leaderId === userId);
+        // 내가 리더인 스터디 목록
+        const myLeaderGroups = groups.filter(g => g.leaderId === userId);
 
-        console.log("📌 리더 여부:", amLeader);
-        setIsLeader(amLeader);
+        // 1) 기존 리더 여부 설정 (HOME 화면 버튼 표시용)
+        setIsLeader(myLeaderGroups.length > 0);
+
+        // 2) 일정 등록 모달에서 사용할 리더 스터디 목록 설정
+        setLeaderGroups(myLeaderGroups);
+
+        console.log("📌 내가 리더인 스터디 목록:", myLeaderGroups);
+        console.log("📌 리더 여부:", myLeaderGroups.length > 0);
+
       } catch (e) {
         console.error("리더 여부 체크 실패:", e);
       }
@@ -518,29 +528,13 @@ const MainPage = () => {
                   </div>
                 }
               />
-
-                {/* 스터디 목록 */}
                 <Route path="list" element={<StudyList />} />
-
-                {/* 추천 그룹 */}
                 <Route path="recommend" element={<RecommendGroups />} />
-
-                {/* 게시판 목록 */}
                 <Route path="board" element={<Board />} />
-
-                {/* 게시글 작성 */}
                 <Route path="board/write" element={<BoardWrite />} />
-
-                {/* 게시글 상세 */}
                 <Route path="board/detail/:postId" element={<BoardDetail />} />
-
-                {/* 게시글 수정 */}
                 <Route path="board/edit/:postId" element={<BoardWrite />} />
-
-                {/* 마이페이지 */}
                 <Route path="mypage" element={<MyPage />} />
-
-                {/* 프로필 수정 */}
                 <Route path="edit-profile" element={<EditProfile />} />
             </Routes>
           </div>
@@ -550,14 +544,14 @@ const MainPage = () => {
       {/* 일정 생성 모달 */}
       {showCreateModal && (
         <ScheduleCreateModal
-          mode={modalMode}                       // ← 수정 모드 반영
-          groupId={selectedGroupId}
+          mode={createMode}                     // "study" | "personal" | "update"
+          leaderGroups={leaderGroups}           // ★ 내가 리더인 스터디 목록 전달
           baseDate={
             modalMode === "update"
-              ? null 
+              ? null
               : selectedDate.toLocaleDateString("en-CA")
           }
-          scheduleData={editScheduleData}        // ← ★ 핵심! 반드시 넘겨야 함 ★
+          scheduleData={editScheduleData}       // 수정 모드에서는 기존 일정 데이터 전달
           onClose={() => setShowCreateModal(false)}
           onSuccess={() => {
             setShowCreateModal(false);
@@ -565,11 +559,13 @@ const MainPage = () => {
           }}
         />
       )}
+
       {/* 일정 상세 모달 */}
       {openDetailModal && detailScheduleId && (
         <ScheduleDetailModal
           scheduleId={detailScheduleId}
           userId={userId}
+          onOpenAttendance={(id) => setOpenAttendanceModal(id)}  // ★ 추가
           onClose={(mode, schedule) => {
             setOpenDetailModal(false);
 
@@ -589,6 +585,7 @@ const MainPage = () => {
           }}
         />
       )}
+
       {/* 출석 모달 */}
       {openAttendanceModal && (
         <AttendanceModal

@@ -128,8 +128,10 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
             <hr />
 
             {/* ---------------- 리더 전용: 가입 요청 멤버 ---------------- */}
+            {/* ---------------- 리더 전용 전체 구역 ---------------- */}
             {isLeader && (
               <>
+                {/* ---------------- 가입 요청 멤버 ---------------- */}
                 <h5>📥 가입 요청 멤버</h5>
                 {members.filter(m => m.status === "PENDING").length === 0 ? (
                   <p>가입 요청이 없습니다.</p>
@@ -138,7 +140,7 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
                     {members.filter(m => m.status === "PENDING").map((m) => (
                       <li key={m.memberId} className="list-group-item d-flex justify-content-between">
                         <span>
-                          {m.name}  
+                          {m.name}
                           <span className="badge bg-warning text-dark ms-2">
                             매너 {m.mannerScore}점
                           </span>
@@ -157,48 +159,51 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
                     ))}
                   </ul>
                 )}
+
                 <hr />
+
+                {/* ---------------- 현재 멤버 목록 ---------------- */}
+                <h5>👥 현재 멤버</h5>
+                {members.filter(m => m.status === "APPROVED").length === 0 ? (
+                  <p>현재 가입된 멤버가 없습니다.</p>
+                ) : (
+                  <ul className="list-group mb-3">
+                    {members.filter(m => m.status === "APPROVED").map((m) => (
+                      <li key={m.memberId} className="list-group-item d-flex justify-content-between">
+                        <span>{m.name}</span>
+
+                        {/* 리더만 강퇴 가능 */}
+                        {m.userId !== leaderId && (
+                          <button
+                            className="btn btn-outline-danger btn-sm"
+                            onClick={() => handleKick(m.memberId)}
+                          >
+                            강퇴
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <hr />
+
+                {/* ---------------- 일정 목록 ---------------- */}
+                <h5>📅 일정 목록</h5>
+                {schedules.length === 0 ? (
+                  <p>등록된 일정이 없습니다.</p>
+                ) : (
+                  <ul className="list-group">
+                    {schedules.map((s) => (
+                      <li key={s.scheduleId} className="list-group-item">
+                        <strong>{s.title}</strong> — {s.startTime.slice(0, 16)}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </>
             )}
 
-            {/* ---------------- 현재 멤버 목록 ---------------- */}
-            <h5>👥 현재 멤버</h5>
-            {members.filter(m => m.status === "APPROVED").length === 0 ? (
-              <p>현재 가입된 멤버가 없습니다.</p>
-            ) : (
-              <ul className="list-group mb-3">
-                {members.filter(m => m.status === "APPROVED").map((m) => (
-                  <li key={m.memberId} className="list-group-item d-flex justify-content-between">
-                    <span>{m.name}</span>
-
-                    {isLeader && m.userId !== leaderId && (
-                      <button
-                        className="btn btn-outline-danger btn-sm"
-                        onClick={() => handleKick(m.memberId)}
-                      >
-                        강퇴
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <hr />
-
-            {/* ---------------- 일정 목록 ---------------- */}
-            <h5>📅 일정 목록</h5>
-            {schedules.length === 0 ? (
-              <p>등록된 일정이 없습니다.</p>
-            ) : (
-              <ul className="list-group">
-                {schedules.map((s) => (
-                  <li key={s.scheduleId} className="list-group-item">
-                    <strong>{s.title}</strong> — {s.startTime.slice(0, 16)}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
 
           <div className="modal-footer">

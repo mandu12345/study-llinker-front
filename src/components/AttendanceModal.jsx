@@ -3,11 +3,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../api/axios";
 
-/**
- * Props
- *  - scheduleId: 출석을 관리할 일정 ID
- *  - onClose: 모달 닫기 콜백
- */
 const AttendanceModal = ({ scheduleId, onClose }) => {
   const [schedule, setSchedule] = useState(null);
   const [members, setMembers] = useState([]);
@@ -26,7 +21,7 @@ const AttendanceModal = ({ scheduleId, onClose }) => {
     const loadData = async () => {
       setLoading(true);
       try {
-        // 1) 일정 단건 조회: GET /api/study-schedules/{scheduleId}
+        // 1) 일정 단건 조회
         const scheduleRes = await api.get(`/study-schedules/${scheduleId}`);
         const sc = scheduleRes.data;
         setSchedule(sc);
@@ -38,7 +33,7 @@ const AttendanceModal = ({ scheduleId, onClose }) => {
           return;
         }
 
-        // 2) 스터디 멤버 조회: GET /api/study-groups/{groupId}/members
+        // 2) 스터디 멤버 조회
         const membersRes = await api.get(
           `/study-groups/${sc.groupId}/members`
         );
@@ -48,8 +43,7 @@ const AttendanceModal = ({ scheduleId, onClose }) => {
         );
         setMembers(approved);
 
-        // 3) 기존 출석 기록 조회: GET /api/attendance/scchedule/{scheduleId}
-        //    (스펙에 나온 엔드포인트 표기 그대로 사용)
+        // 3) 기존 출석 기록 조회
         let attendanceMap = {};
         try {
           const attRes = await api.get(
@@ -114,7 +108,7 @@ const AttendanceModal = ({ scheduleId, onClose }) => {
               📋 출석 관리
               {schedule && (
                 <span className="ms-2">
-                  ({schedule.title} / 그룹 ID: {schedule.groupId ?? "개인 일정"})
+                  ({schedule.title})
                 </span>
               )}
             </h5>
@@ -174,14 +168,38 @@ const AttendanceModal = ({ scheduleId, onClose }) => {
             )}
           </div>
 
-          {/* 푸터 */}
           <div className="modal-footer">
             <button
-              className="btn btn-secondary btn-sm"
-              onClick={onClose}
+              className="btn btn-success btn-sm"
+              onClick={async () => {
+                try {
+                  const entries = Object.entries(statusMap);
+
+                  // 상태별 모두 서버 반영
+                  for (const [userId, status] of entries) {
+                    if (!status) continue;
+                    await api.post("/attendance", {
+                      scheduleId,
+                      userId,
+                      status,
+                    });
+                  }
+
+                  alert("출석 정보가 저장되었습니다!");
+                  onClose();
+                } catch (err) {
+                  console.error("출석 저장 실패:", err);
+                  alert("출석 저장 중 오류가 발생했습니다.");
+                }
+              }}
             >
+              출석 저장
+            </button>
+
+            <button className="btn btn-secondary btn-sm" onClick={onClose}>
               닫기
             </button>
+
           </div>
         </div>
       </div>
