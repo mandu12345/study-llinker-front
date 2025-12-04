@@ -308,7 +308,7 @@ const StudyList = () => {
       />
 
       <div className="text-end mb-3">
-        <button className="btn btn-success" onClick={() => setShowForm(true)}>
+        <button className="learn-more" onClick={() => setShowForm(true)}>
           ➕ 새 스터디 생성
         </button>
       </div>
@@ -363,8 +363,11 @@ const StudyList = () => {
           >
             <div className="modal-dialog">
               <div className="modal-content">
-                <div className="modal-header bg-primary text-white">
-                  <h5>{selectedGroup.title}</h5>
+                <div
+                  className="modal-header"
+                  style={{ backgroundColor: "#bfb9b9", color: "#fff" }}
+                >
+                  <h5><strong>{selectedGroup.title}</strong></h5>
                   <button
                     className="btn-close btn-close-white"
                     onClick={() => setShowModal(false)}
@@ -372,21 +375,22 @@ const StudyList = () => {
                 </div>
 
                 <div className="modal-body">
-                  <p>
-                    <strong>리더:</strong> {selectedGroup.leaderName}
-                  </p>
-                  <p>
-                    <strong>설명:</strong> {selectedGroup.description}
-                  </p>
-                  <p>
-                    <strong>주소:</strong> {selectedAddress}
-                  </p>
-
+                  <p><strong>리더</strong> {selectedGroup.leaderName}</p>
+                  <p><strong>설명</strong> {selectedGroup.description}</p>
+                  <p><strong>주소</strong> {selectedAddress}</p>
                   <div className="mb-2">
-                    <strong>카테고리:</strong>
-                    <br />
+                    <strong>카테고리</strong>
+                    
                     {selectedGroup.categoryList.map((tag, idx) => (
-                      <span key={idx} className="badge bg-info text-dark me-2">
+                      <span
+                        key={idx}
+                        className="badge me-2"
+                        style={{
+                          backgroundColor: "#bfb9b9",
+                          color: "#fff",
+                          fontWeight: "500",
+                        }}
+                      >
                         #{tag}
                       </span>
                     ))}
@@ -407,6 +411,7 @@ const StudyList = () => {
         )
       )}
 
+
       {/* 생성 모달 */}
       {showForm && (
         <div
@@ -415,8 +420,11 @@ const StudyList = () => {
         >
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
-              <div className="modal-header bg-success text-white">
-                <h5>새 스터디 생성</h5>
+              <div
+                className="modal-header"
+                style={{ backgroundColor: "#797979ff", color: "#fff" }}
+              >
+                <h5><strong>새 스터디 생성</strong></h5>
                 <button
                   className="btn-close btn-close-white"
                   onClick={() => setShowForm(false)}
@@ -519,14 +527,17 @@ const StudyList = () => {
 
                 <div className="modal-footer">
                   <button
-                    className="btn btn-secondary btn-sm"
-                    type="button"
-                    onClick={() => setShowForm(false)}
+                    className="btn btn-sm"
+                    style={{ backgroundColor: "#797979ff", color: "#fff" }}
                   >
-                    취소
+                    <strong>취소</strong> 
                   </button>
-                  <button className="btn btn-success btn-sm" type="submit">
-                    생성
+                  <button
+                    className="btn btn-sm"
+                    style={{ backgroundColor: "#f88888ff", color: "#fff" }}
+                    type="submit"
+                  >
+                    <strong>생성</strong>
                   </button>
                 </div>
               </form>

@@ -219,8 +219,8 @@ const Board = () => {
 
       {/* 글쓰기 */}
       <div className="mb-3 text-end">
-        <button className="btn btn-success" onClick={() => navigate("/main/board/write")}>
-          ✍️ 글쓰기
+        <button className="learn-more" onClick={() => navigate("/main/board/write")}>
+          ➕ 글 쓰기
         </button>
       </div>
 

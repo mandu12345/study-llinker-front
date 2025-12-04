@@ -491,7 +491,7 @@ const MainPage = () => {
                               setShowCreateModal(true);
                             }}
                           >
-                            + 스터디 일정 등록
+                            ➕ 스터디 일정 등록
                           </button>
                         )}
 
@@ -502,7 +502,7 @@ const MainPage = () => {
                             setShowCreateModal(true);
                           }}
                         >
-                          + 개인 일정 등록
+                          ➕ 개인 일정 등록
                         </button>
 
                         <Calendar
