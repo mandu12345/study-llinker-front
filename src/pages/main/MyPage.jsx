@@ -4,6 +4,9 @@ import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import StudyGroupDetailModal from "../../components/StudyGroupDetailModal";
 
+// ⭐ React Icons 추가
+import { FaUser, FaStar, FaBook, FaPenNib } from "react-icons/fa";
+
 const MyPage = () => {
   const navigate = useNavigate();
 
@@ -19,11 +22,9 @@ const MyPage = () => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [showGroupModal, setShowGroupModal] = useState(false);
 
-  // 1) 사용자 정보 조회
   const fetchUserProfile = async () => {
     try {
       const res = await api.get("/users/profile");
-      console.log("📌 프로필 응답:", res.data);
       setUserInfo(res.data);
       return res.data;
     } catch (err) {
@@ -32,7 +33,6 @@ const MyPage = () => {
     }
   };
 
-  // 2) 참여 그룹 조회
   const fetchJoinedGroups = async (userId) => {
     try {
       const allGroupsRes = await api.get("/study-groups");
@@ -42,14 +42,11 @@ const MyPage = () => {
 
       for (const g of groups) {
         try {
-          // 1) 내가 가입한 그룹인지 확인
           const memRes = await api.get(
             `/study-groups/${g.groupId}/members/${userId}`
           );
 
           if (memRes.data && memRes.data.status === "APPROVED") {
-
-            // 2) 리더 정보 조회
             const leaderRes = await api.get(
               `/study-groups/${g.groupId}/leader`
             );
@@ -59,12 +56,10 @@ const MyPage = () => {
             myGroups.push({
               ...g,
               status: memRes.data.status,
-              leaderName: leaderName,   // 🔥 리더 이름 정상 주입
+              leaderName: leaderName,
             });
           }
-        } catch (err) {
-          // 가입 안 된 그룹 → 무시
-        }
+        } catch {}
       }
 
       setJoinedGroups(myGroups);
@@ -73,47 +68,33 @@ const MyPage = () => {
     }
   };
 
-  // 3) 매너점수 조회
   const fetchMannerScore = async (userId) => {
     try {
       const res = await api.get(`/manners/${userId}`);
-      console.log("📌 서버 매너 점수 응답:", res.data);
       setManner(res.data);
     } catch (err) {
       console.error("매너점수 조회 오류:", err);
     }
   };
 
-  // 4) 활동 이력 조회
-  //    - 게시글: post.leaderId === 내 userId
-  //    - 댓글: comment.userId === 내 userId
   const fetchActivityHistory = async (userId) => {
     try {
       const postsRes = await api.get("/study-posts");
       const allPosts = postsRes.data || [];
-      console.log("📌 전체 게시글 예시:", allPosts[0]);
 
-      // ✅ 내가 리더인 글들만 필터링
       const myPosts = allPosts.filter((p) => p.leaderId === userId);
 
       const postCount = myPosts.filter((p) => p.type === "FREE").length;
       const reviewCount = myPosts.filter((p) => p.type === "REVIEW").length;
 
-      // ✅ 내가 쓴 댓글 수 계산 (comment.userId 기준)
       let commentCount = 0;
       for (const post of allPosts) {
         try {
           const cmRes = await api.get(`/study-posts/${post.postId}/comments`);
           const comments = cmRes.data || [];
 
-          const myComments = comments.filter(
-            (c) => c.userId === userId
-          );
-
-          commentCount += myComments.length;
-        } catch (e) {
-          // 댓글 없는 글은 무시
-        }
+          commentCount += comments.filter((c) => c.userId === userId).length;
+        } catch {}
       }
 
       setActivity({
@@ -126,44 +107,31 @@ const MyPage = () => {
     }
   };
 
-  // 5) 회원 탈퇴
   const handleDeleteAccount = async () => {
     if (
-      !window.confirm(
-        "정말 계정을 탈퇴하시겠습니까?\n탈퇴 후 복구는 불가능합니다."
-      )
-    ) {
+      !window.confirm("정말 계정을 탈퇴하시겠습니까?\n탈퇴 후 복구는 불가능합니다.")
+    )
       return;
-    }
 
     try {
-      if (!userInfo) {
-        alert("사용자 정보를 불러오지 못했습니다.");
-        return;
-      }
+      if (!userInfo) return;
 
-      await api.delete(`/users/${userInfo.userId}`); // ✅ userId 사용
+      await api.delete(`/users/${userInfo.userId}`);
 
       alert("회원 탈퇴가 완료되었습니다.");
-
-      // JWT 토큰 삭제
       localStorage.removeItem("token");
-
-      // 로그인 페이지로 이동
       navigate("/login");
     } catch (err) {
       console.error("회원 탈퇴 오류:", err);
-      alert("회원 탈퇴 실패! 관리자에게 문의하세요.");
+      alert("회원 탈퇴 실패. 관리자에게 문의하세요.");
     }
   };
 
-  // 전체 데이터 로드
   useEffect(() => {
     const load = async () => {
       const user = await fetchUserProfile();
       if (user) {
         const userId = user.userId;
-
         await Promise.all([
           fetchJoinedGroups(userId),
           fetchMannerScore(userId),
@@ -177,27 +145,33 @@ const MyPage = () => {
 
   if (loading) return <div className="container mt-4">로딩중...</div>;
 
+  // ⭐ 매너점수 파스텔톤 색상 정의
+  const getMannerColor = (score) => {
+    if (score >= 70) return "#A3E4D7"; // 파스텔 민트
+    if (score >= 40) return "#F9E79F"; // 파스텔 옐로우
+    return "#F5B7B1"; // 파스텔 핑크
+  };
+
   return (
     <div>
-      <h2><strong>내 프로필</strong></h2>
+      <h2>
+        <strong>내 프로필</strong>
+      </h2>
       <br />
+
       {/* ------------------ 기본 정보 ------------------ */}
       <div className="card mb-4 shadow-sm">
         <div className="card-body">
-          <h5 className="card-title mb-3">👤 기본 정보</h5>
+          <h5 className="card-title mb-3">
+            <FaUser className="me-2 text-primary" /> 기본 정보
+          </h5>
 
-          <p>
-            <strong>이름:</strong> {userInfo?.name}
-          </p>
-          <p>
-            <strong>아이디:</strong> {userInfo?.username}
-          </p>
-          <p>
-            <strong>이메일:</strong> {userInfo?.email}
-          </p>
+          <p><strong>이름:</strong> {userInfo?.name}</p>
+          <p><strong>아이디:</strong> {userInfo?.username}</p>
+          <p><strong>이메일:</strong> {userInfo?.email}</p>
           <p>
             <strong>관심사:</strong>{" "}
-            {userInfo?.interestTags && userInfo.interestTags.length > 0
+            {userInfo?.interestTags?.length > 0
               ? userInfo.interestTags.join(", ")
               : "없음"}
           </p>
@@ -222,17 +196,22 @@ const MyPage = () => {
       {/* ------------------ 매너점수 ------------------ */}
       <div className="card mb-4 shadow-sm">
         <div className="card-body">
-          <h5 className="card-title mb-3">🌟 매너점수</h5>
+          <h5 className="card-title mb-3">
+            <FaStar className="me-2 text-warning" /> 매너점수
+          </h5>
 
           <div className="progress" style={{ height: "25px" }}>
             <div
-              className={`progress-bar ${
-                (manner?.currentMannerScore || 0) >= 70
-                  ? "bg-success"
-                  : "bg-warning"
-              }`}
+              className="progress-bar"
               role="progressbar"
-              style={{ width: `${manner?.currentMannerScore || 0}%` }}
+              style={{
+                width: `${manner?.currentMannerScore || 0}%`,
+                backgroundColor: getMannerColor(
+                  manner?.currentMannerScore || 0
+                ),
+                color: "#333",
+                fontWeight: "bold",
+              }}
             >
               {manner?.currentMannerScore ?? 0}점
             </div>
@@ -240,26 +219,24 @@ const MyPage = () => {
         </div>
       </div>
 
-            {/* ------------------ 참여 스터디 그룹 ------------------ */}
+      {/* ------------------ 참여 스터디 그룹 ------------------ */}
       <div className="card mb-4 shadow-sm">
         <div className="card-body">
-          <h5 className="card-title mb-3">📚 참여한 스터디 그룹</h5>
+          <h5 className="card-title mb-3">
+            <FaBook className="me-2 text-success" /> 참여한 스터디 그룹
+          </h5>
 
-          {joinedGroups && joinedGroups.length > 0 ? (
+          {joinedGroups.length > 0 ? (
             <ul className="list-group">
               {joinedGroups.map((g) => (
                 <li
-                  key={g.groupId} // ✅ group_id 말고 groupId
+                  key={g.groupId}
                   className="list-group-item d-flex justify-content-between align-items-center"
                   style={{ cursor: "pointer" }}
                   onClick={() => {
-                    setSelectedGroup({
-                      ...g,
-                      group_id: g.groupId,   // 🔹 DetailModal용 필드 추가
-                    });
+                    setSelectedGroup({ ...g, group_id: g.groupId });
                     setShowGroupModal(true);
                   }}
-                  
                 >
                   <div>
                     <strong>{g.title}</strong>
@@ -279,7 +256,9 @@ const MyPage = () => {
       {/* ------------------ 활동 이력 ------------------ */}
       <div className="card mb-4 shadow-sm">
         <div className="card-body">
-          <h5 className="card-title mb-3">📝 활동 이력</h5>
+          <h5 className="card-title mb-3">
+            <FaPenNib className="me-2 text-primary" /> 활동 이력
+          </h5>
           <div className="d-flex justify-content-around text-center">
             <div>
               <p className="h4 text-primary">{activity.posts}</p>
@@ -296,12 +275,11 @@ const MyPage = () => {
           </div>
         </div>
       </div>
-      
-      {/* ------------------ 모달 ------------------ */}
+
       {showGroupModal && selectedGroup && (
         <StudyGroupDetailModal
           group={selectedGroup}
-          userId={userInfo.userId}   // ★ 리더 여부 판단을 위해 필수
+          userId={userInfo.userId}
           onClose={() => {
             setShowGroupModal(false);
             setSelectedGroup(null);

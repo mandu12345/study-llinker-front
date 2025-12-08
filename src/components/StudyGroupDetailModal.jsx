@@ -108,7 +108,6 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
           </div>
 
           <div className="modal-body">
-            {/* ---------------- 그룹 기본 정보 ---------------- */}
             <h5><FaThumbtack className="me-2 text-primary" />그룹 정보</h5>
             <p><strong>제목:</strong> {group.title}</p>
             <p><strong>설명:</strong> {group.description}</p>
@@ -118,7 +117,7 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
 
             {isLeader && (
               <>
-                {/* ---------------- 가입 요청 멤버 ---------------- */}
+                {/* 가입 요청 멤버 */}
                 <h5><FaInbox className="me-2 text-warning" />가입 요청 멤버</h5>
                 {members.filter(m => m.status === "PENDING").length === 0 ? (
                   <p>가입 요청이 없습니다.</p>
@@ -133,14 +132,25 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
                           </span>
                         </span>
                         <div>
-                          <button className="btn btn-success btn-sm me-2"
-                            onClick={() => handleApprove(m.userId)}>
+
+                          {/* ✔ 승인 버튼 - 파스텔톤 */}
+                          <button
+                            className="btn btn-sm me-2"
+                            style={{ backgroundColor: "#A3E4D7", color: "#000" }}
+                            onClick={() => handleApprove(m.userId)}
+                          >
                             승인
                           </button>
-                          <button className="btn btn-danger btn-sm"
-                            onClick={() => handleReject(m.userId)}>
+
+                          {/* ✔ 거절 버튼 - 파스텔 핑크 */}
+                          <button
+                            className="btn btn-sm"
+                            style={{ backgroundColor: "#F5B7B1", color: "#000" }}
+                            onClick={() => handleReject(m.userId)}
+                          >
                             거절
                           </button>
+
                         </div>
                       </li>
                     ))}
@@ -149,7 +159,7 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
 
                 <hr />
 
-                {/* ---------------- 현재 멤버 목록 ---------------- */}
+                {/* 현재 멤버 */}
                 <h5><FaUsers className="me-2 text-info" />현재 멤버</h5>
                 {members.filter(m => m.status === "APPROVED").length === 0 ? (
                   <p>현재 가입된 멤버가 없습니다.</p>
@@ -158,9 +168,11 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
                     {members.filter(m => m.status === "APPROVED").map((m) => (
                       <li key={m.memberId} className="list-group-item d-flex justify-content-between">
                         <span>{m.name}</span>
+
                         {m.userId !== leaderId && (
                           <button
-                            className="btn btn-outline-danger btn-sm"
+                            className="btn btn-sm"
+                            style={{ backgroundColor: "#F5B7B1", color: "#000" }}
                             onClick={() => handleKick(m.memberId)}
                           >
                             강퇴
@@ -173,7 +185,7 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
 
                 <hr />
 
-                {/* ---------------- 일정 목록 ---------------- */}
+                {/* 일정 목록 */}
                 <h5><FaCalendarAlt className="me-2 text-success" />일정 목록</h5>
                 {schedules.length === 0 ? (
                   <p>등록된 일정이 없습니다.</p>
