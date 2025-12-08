@@ -204,13 +204,24 @@ const Board = () => {
       {/* 탭 버튼 */}
       <div className="btn-group mb-3">
         <button
-          className={`btn btn-${tab === "FREE" ? "primary" : "outline-primary"}`}
+          className="btn"
+          style={{
+            backgroundColor: tab === "FREE" ? "#a78bfa" : "white",
+            color: tab === "FREE" ? "white" : "#a78bfa",
+            border: "1px solid #a78bfa"
+          }}
           onClick={() => setTab("FREE")}
         >
           자유게시판
         </button>
+
         <button
-          className={`btn btn-${tab === "REVIEW" ? "primary" : "outline-primary"}`}
+          className="btn"
+          style={{
+            backgroundColor: tab === "REVIEW" ? "#a78bfa" : "white",
+            color: tab === "REVIEW" ? "white" : "#a78bfa",
+            border: "1px solid #a78bfa"
+          }}
           onClick={() => setTab("REVIEW")}
         >
           스터디 리뷰
