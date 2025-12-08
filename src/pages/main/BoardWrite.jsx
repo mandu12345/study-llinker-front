@@ -222,7 +222,12 @@ const BoardWrite = ({ defaultType }) => {
           </>
         )}
 
-        <button className="btn btn-primary">저장</button>
+        <button
+          className="btn"
+          style={{ backgroundColor: "#a78bfa", color: "white", fontWeight: "bold" }}
+        >
+          저장
+        </button>
         <button
           className="btn btn-secondary ms-2"
           onClick={() => navigate("/main/board")}

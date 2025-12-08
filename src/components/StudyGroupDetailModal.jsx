@@ -3,31 +3,28 @@
 import React, { useEffect, useState } from "react";
 import api from "../api/axios";
 
+// ⭐ React Icons 추가
+import { FaThumbtack, FaInbox, FaUsers, FaCalendarAlt } from "react-icons/fa";
+
 const StudyGroupDetailModal = ({ group, onClose, userId }) => {
   const [leaderId, setLeaderId] = useState(null);
   const [leaderName, setLeaderName] = useState("");
-  const [members, setMembers] = useState([]);           // 모든 멤버(PENDING + APPROVED)
+  const [members, setMembers] = useState([]);          
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const isLeader = userId === leaderId;
 
-  // ------------------------------
-  // 1) 그룹 기본 정보 불러오기
-  // ------------------------------
   useEffect(() => {
     const load = async () => {
       try {
-        // 리더 정보
         const leaderRes = await api.get(`/study-groups/${group.group_id}/leader`);
         setLeaderId(leaderRes.data.userId);
         setLeaderName(leaderRes.data.name);
 
-        // 멤버 목록
         const memRes = await api.get(`/study-groups/${group.group_id}/members`);
         let memList = memRes.data;
 
-        // 각 멤버별 매너점수 추가
         memList = await Promise.all(
           memList.map(async (m) => {
             try {
@@ -44,7 +41,6 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
 
         setMembers(memList);
 
-        // 일정 목록
         const schRes = await api.get(`/study-groups/${group.group_id}/schedules`);
         setSchedules(schRes.data);
       } catch (err) {
@@ -56,9 +52,6 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
     load();
   }, [group.group_id]);
 
-  // ------------------------------
-  // 2) 가입 승인
-  // ------------------------------
   const handleApprove = async (uid) => {
     try {
       await api.post(`/study-groups/${group.group_id}/members/${uid}/approve`);
@@ -70,9 +63,6 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
     }
   };
 
-  // ------------------------------
-  // 3) 가입 거절
-  // ------------------------------
   const handleReject = async (uid) => {
     try {
       await api.post(`/study-groups/${group.group_id}/members/${uid}/reject`);
@@ -84,9 +74,6 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
     }
   };
 
-  // ------------------------------
-  // 4) 강퇴
-  // ------------------------------
   const handleKick = async (memberId) => {
     if (!window.confirm("정말 이 멤버를 강퇴하시겠습니까?")) return;
 
@@ -100,7 +87,6 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
     }
   };
 
-  // 멤버 재로드
   const reloadMembers = async () => {
     const memRes = await api.get(`/study-groups/${group.group_id}/members`);
     setMembers(memRes.data);
@@ -114,25 +100,25 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
         <div className="modal-content">
 
           <div className="modal-header">
-            <h5 className="modal-title">{group.title} 상세 정보</h5>
+            <h5 className="modal-title">
+              <FaThumbtack className="me-2 text-primary" />
+              {group.title} 상세 정보
+            </h5>
             <button className="btn-close" onClick={onClose}></button>
           </div>
 
           <div className="modal-body">
-            {/* ---------------- 그룹 기본 정보 ---------------- */}
-            <h5>📌 그룹 정보</h5>
+            <h5><FaThumbtack className="me-2 text-primary" />그룹 정보</h5>
             <p><strong>제목:</strong> {group.title}</p>
             <p><strong>설명:</strong> {group.description}</p>
             <p><strong>리더:</strong> {leaderName}</p>
 
             <hr />
 
-            {/* ---------------- 리더 전용: 가입 요청 멤버 ---------------- */}
-            {/* ---------------- 리더 전용 전체 구역 ---------------- */}
             {isLeader && (
               <>
-                {/* ---------------- 가입 요청 멤버 ---------------- */}
-                <h5>📥 가입 요청 멤버</h5>
+                {/* 가입 요청 멤버 */}
+                <h5><FaInbox className="me-2 text-warning" />가입 요청 멤버</h5>
                 {members.filter(m => m.status === "PENDING").length === 0 ? (
                   <p>가입 요청이 없습니다.</p>
                 ) : (
@@ -146,14 +132,25 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
                           </span>
                         </span>
                         <div>
-                          <button className="btn btn-success btn-sm me-2"
-                            onClick={() => handleApprove(m.userId)}>
+
+                          {/* ✔ 승인 버튼 - 파스텔톤 */}
+                          <button
+                            className="btn btn-sm me-2"
+                            style={{ backgroundColor: "#A3E4D7", color: "#000" }}
+                            onClick={() => handleApprove(m.userId)}
+                          >
                             승인
                           </button>
-                          <button className="btn btn-danger btn-sm"
-                            onClick={() => handleReject(m.userId)}>
+
+                          {/* ✔ 거절 버튼 - 파스텔 핑크 */}
+                          <button
+                            className="btn btn-sm"
+                            style={{ backgroundColor: "#F5B7B1", color: "#000" }}
+                            onClick={() => handleReject(m.userId)}
+                          >
                             거절
                           </button>
+
                         </div>
                       </li>
                     ))}
@@ -162,8 +159,8 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
 
                 <hr />
 
-                {/* ---------------- 현재 멤버 목록 ---------------- */}
-                <h5>👥 현재 멤버</h5>
+                {/* 현재 멤버 */}
+                <h5><FaUsers className="me-2 text-info" />현재 멤버</h5>
                 {members.filter(m => m.status === "APPROVED").length === 0 ? (
                   <p>현재 가입된 멤버가 없습니다.</p>
                 ) : (
@@ -172,10 +169,10 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
                       <li key={m.memberId} className="list-group-item d-flex justify-content-between">
                         <span>{m.name}</span>
 
-                        {/* 리더만 강퇴 가능 */}
                         {m.userId !== leaderId && (
                           <button
-                            className="btn btn-outline-danger btn-sm"
+                            className="btn btn-sm"
+                            style={{ backgroundColor: "#F5B7B1", color: "#000" }}
                             onClick={() => handleKick(m.memberId)}
                           >
                             강퇴
@@ -188,8 +185,8 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
 
                 <hr />
 
-                {/* ---------------- 일정 목록 ---------------- */}
-                <h5>📅 일정 목록</h5>
+                {/* 일정 목록 */}
+                <h5><FaCalendarAlt className="me-2 text-success" />일정 목록</h5>
                 {schedules.length === 0 ? (
                   <p>등록된 일정이 없습니다.</p>
                 ) : (
@@ -203,7 +200,6 @@ const StudyGroupDetailModal = ({ group, onClose, userId }) => {
                 )}
               </>
             )}
-
           </div>
 
           <div className="modal-footer">

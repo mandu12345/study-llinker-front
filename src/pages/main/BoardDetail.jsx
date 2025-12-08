@@ -16,15 +16,12 @@ const BoardDetail = () => {
   const [userId, setUserId] = useState(null);
   const [groupInfo, setGroupInfo] = useState(null);
 
-  // 로그인 사용자 ID 조회
   useEffect(() => {
-    api
-      .get("/users/profile")
+    api.get("/users/profile")
       .then((res) => setUserId(res.data.userId))
       .catch(() => {});
   }, []);
 
-  // 게시글 + 댓글 로드
   useEffect(() => {
     const load = async () => {
       try {
@@ -34,10 +31,8 @@ const BoardDetail = () => {
 
         const gid = data.groupId ?? data.group_id;
         if (data.type === "REVIEW" && gid) {
-          try {
-            const gRes = await api.get(`/study-groups/${gid}`);
-            setGroupInfo(gRes.data);
-          } catch {}
+          const gRes = await api.get(`/study-groups/${gid}`);
+          setGroupInfo(gRes.data);
         }
 
         const cRes = await api.get(`/study-posts/${postId}/comments`);
@@ -53,20 +48,17 @@ const BoardDetail = () => {
 
   if (loading || !post) return <p>로딩 중...</p>;
 
-  // 게시글 삭제
   const deletePost = async () => {
     if (!window.confirm("삭제하시겠습니까?")) return;
     try {
       await api.delete(`/study-posts/${postId}`);
       alert("삭제 완료");
       navigate("/main/board");
-    } catch (err) {
-      console.error(err);
+    } catch {
       alert("삭제 실패");
     }
   };
 
-  // 댓글 작성
   const writeComment = async () => {
     if (!newComment.trim()) return;
 
@@ -78,46 +70,37 @@ const BoardDetail = () => {
       const res = await api.get(`/study-posts/${postId}/comments`);
       setComments(res.data);
       setNewComment("");
-    } catch (err) {
-      console.error("댓글 실패:", err);
+    } catch {
+      console.error("댓글 실패");
     }
   };
 
-  // 댓글 삭제
   const deleteCommentFn = async (cid) => {
-    if (!window.confirm("삭제하시겠습니까?")) return;
+    if (!window.confirm("댓글을 삭제하시겠습니까?")) return;
 
     try {
       await api.delete(`/study-posts/${postId}/comments/${cid}`);
       setComments((prev) => prev.filter((c) => c.commentId !== cid));
-    } catch (err) {
-      console.error(err);
-    }
+    } catch {}
   };
 
   return (
     <div className="container mt-4" style={{ textAlign: "left" }}>
-      {/* 뒤로가기 */}
-      <button
-        className="btn btn-secondary mb-3"
-        onClick={() => navigate("/main/board")}
-      >
+      <button className="btn btn-secondary mb-3" onClick={() => navigate("/main/board")}>
         ← 뒤로가기
       </button>
 
       {/* 게시글 영역 */}
-      <div className="card mb-4" style={{ textAlign: "left" }}>
+      <div className="card mb-4">
         <div className="card-header">
-          <h4 style={{ marginBottom: "0" }}>{post.title}</h4>
+          <h4 style={{ marginBottom: 0 }}>{post.title}</h4>
           <span className="badge bg-primary">{post.type}</span>
         </div>
 
-        <div className="card-body" style={{ textAlign: "left" }}>
+        <div className="card-body">
           <p style={{ whiteSpace: "pre-wrap" }}>{post.content}</p>
 
-          <p className="text-muted">
-            작성자: {post.leaderName || "익명"}  
-          </p>
+          <p className="text-muted">작성자: {post.leaderName || "익명"}</p>
 
           {post.type === "REVIEW" && groupInfo && (
             <p className="text-muted">
@@ -125,16 +108,30 @@ const BoardDetail = () => {
             </p>
           )}
 
-          {/* 수정/삭제 버튼 — 작성자만 */}
+          {/* 수정/삭제 버튼 */}
           {post.leaderId === userId && (
             <div className="mt-3">
               <button
-                className="btn btn-warning me-2"
+                className="btn me-2"
+                style={{
+                  backgroundColor: "#A3E4D7",
+                  color: "#000",
+                  fontWeight: "500",
+                }}
                 onClick={() => navigate(`/main/board/edit/${postId}`)}
               >
                 수정
               </button>
-              <button className="btn btn-danger" onClick={deletePost}>
+
+              <button
+                className="btn"
+                style={{
+                  backgroundColor: "#F5B7B1",
+                  color: "#000",
+                  fontWeight: "500",
+                }}
+                onClick={deletePost}
+              >
                 삭제
               </button>
             </div>
@@ -143,23 +140,31 @@ const BoardDetail = () => {
       </div>
 
       {/* 댓글 영역 */}
-      <div className="mb-5" style={{ textAlign: "left" }}>
+      <div className="mb-5">
         <h5>댓글</h5>
 
         {comments.map((c) => (
-          <div key={c.commentId} className="card p-3 mb-2" style={{ textAlign: "left" }}>
-            <p style={{ marginBottom: "6px" }}>{c.content}</p>
+          <div key={c.commentId} className="card p-3 mb-2">
+            <p style={{ marginBottom: 6 }}>{c.content}</p>
+
             <small className="text-muted">
               {c.userName || "사용자"} • {c.createdAt}
             </small>
 
             {c.userId === userId && (
               <button
-                className="btn btn-danger btn-sm mt-2"
-                style={{ width: "auto" }}
                 onClick={() => deleteCommentFn(c.commentId)}
+                className="btn btn-sm mt-2"
+                style={{
+                  backgroundColor: "#F5B7B1",
+                  color: "#000",
+                  borderRadius: "8px",
+                  padding: "2px 8px",
+                  fontSize: "12px",
+                  width: "fit-content",
+                }}
               >
-                삭제
+                ❌ 삭제
               </button>
             )}
           </div>
@@ -172,10 +177,18 @@ const BoardDetail = () => {
           placeholder="댓글 작성..."
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
-          style={{ textAlign: "left" }}
         />
 
-        <button className="btn btn-primary mt-2" onClick={writeComment}>
+        {/* 댓글 작성 버튼 → 보라색 */}
+        <button
+          className="btn mt-2"
+          style={{
+            backgroundColor: "#a78bfa",
+            color: "white",
+            fontWeight: "bold",
+          }}
+          onClick={writeComment}
+        >
           댓글 작성
         </button>
       </div>

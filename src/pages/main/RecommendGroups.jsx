@@ -73,7 +73,7 @@ const RecommendGroups = () => {
 
       const res = await api.get(url, {
         params: {
-          userId: uid, // popular API는 안 써도 보내는 건 문제 없음
+          userId: uid, 
           limit: 10,
           lat: loc.lat,
           lng: loc.lng,
@@ -82,8 +82,37 @@ const RecommendGroups = () => {
       });
 
       console.log("추천 API 응답:", res.data);
-      // 응답: { criteria, radiusKm, limit, groups: [...] }
-      setGroups(res.data.groups || []);
+
+      const rawGroups = res.data.groups || [];
+
+      // ⭐⭐ 여기서 groupId로 상세 정보 조회하여 description 보강
+      const enrichedGroups = await Promise.all(
+        rawGroups.map(async (g) => {
+          const id = g.studyGroupId ?? g.groupId;
+          if (!id) return g;
+
+          try {
+            const detailRes = await api.get(`/study-groups/${id}`);
+            const detail = detailRes.data;
+
+            return {
+              ...g,
+              description: detail.description, // ⭐ description 보강
+              category:
+                Array.isArray(detail.category)
+                  ? detail.category
+                  : typeof detail.category === "string"
+                    ? JSON.parse(detail.category) // ⭐ JSON 문자열 → 배열 변환
+                    : g.category,
+            };
+          } catch (err) {
+            console.error("스터디 상세 조회 실패:", err);
+            return g; // 실패하면 기존 데이터 그대로 사용
+          }
+        })
+      );
+
+      setGroups(enrichedGroups);
     } catch (err) {
       console.error("추천 스터디 불러오기 실패:", err);
     }
@@ -137,9 +166,16 @@ const RecommendGroups = () => {
         const lng = g.lng || g.longitude;
         if (lat == null || lng == null) return;
 
+        // ⭐ 스터디 전용 마커 이미지
+        const studyMarkerImg = new window.kakao.maps.MarkerImage(
+          "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png",
+          new window.kakao.maps.Size(24, 35)
+        );
+
         new window.kakao.maps.Marker({
           position: new window.kakao.maps.LatLng(lat, lng),
           map,
+          image: studyMarkerImg, 
         });
       });
     });
@@ -172,7 +208,9 @@ const RecommendGroups = () => {
     });
   }, [selectedGroup]);
 
-  // UI 시작
+  // ================================
+  //            UI 시작
+  // ================================  
   return (
     <div>
       <h2><strong>스터디 추천</strong></h2>
@@ -225,16 +263,14 @@ const RecommendGroups = () => {
       <div className="row">
         {Array.isArray(groups) &&
           groups.map((group) => {
-            // DTO 통합 처리 (TagRecommendGroupDto + PopularLocationGroupDto)
             const id = group.studyGroupId ?? group.groupId;
             const name = group.name ?? group.title;
-            const description = group.description ?? "";
+
+            // ⭐ description 통합 코드 제거하고 단일화
+            const description = group.description ?? "-"; // ← 여기만 남김
+
             const distanceKm = group.distanceKm;
             const score = group.finalScore;
-
-            const categoryText = Array.isArray(group.category)
-              ? group.category.join(", ")
-              : null;
 
             return (
               <div
@@ -244,18 +280,22 @@ const RecommendGroups = () => {
                 <div className="card shadow-sm">
                   <div className="card-body">
                     <h5 className="card-title">{name}</h5>
+
                     <p className="card-text">
                       {description}
                       <br />
-                      {categoryText && (
-                        <>
-                          태그:{" "}
-                          <span className="badge bg-secondary me-1">
-                            #{categoryText}
-                          </span>
-                          <br />
-                        </>
+
+                      {Array.isArray(group.category) && group.category.length > 0 && (
+                        <div className="mb-2">
+                          <strong>카테고리: </strong>
+                          {group.category.map((tag, idx) => (
+                            <span key={idx} className="badge bg-secondary me-1">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
                       )}
+
                       거리:{" "}
                       {distanceKm != null ? distanceKm.toFixed(1) : "-"} km
                       <br />
@@ -309,37 +349,46 @@ const RecommendGroups = () => {
       </div>
 
       {/* 상세보기 모달 */}
-      {showModal && selectedGroup && (
+        {showModal && selectedGroup && (
         <div
           className="modal d-block"
           style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
         >
           <div className="modal-dialog">
             <div className="modal-content">
-              <div className="modal-header bg-primary text-white">
+
+              {/* 헤더 */}
+              <div
+                className="modal-header"
+                style={{ backgroundColor: "#bfb9b9", color: "#fff" }}
+              >
                 <h5 className="modal-title">
-                  {selectedGroup.name ?? selectedGroup.title}
+                  <strong>{selectedGroup.name ?? selectedGroup.title}</strong>
                 </h5>
+
                 <button
                   type="button"
                   className="btn-close btn-close-white"
                   onClick={() => setShowModal(false)}
                 ></button>
               </div>
+
               <div className="modal-body">
                 <p>
                   <strong>설명:</strong>{" "}
                   {selectedGroup.description ?? "-"}
                 </p>
 
-                {Array.isArray(selectedGroup.category) && (
-                  <p>
-                    <strong>카테고리:</strong>{" "}
-                    <span className="badge bg-info text-dark me-1">
-                      #{selectedGroup.category.join(", ")}
-                    </span>
-                  </p>
-                )}
+                {Array.isArray(selectedGroup.category) && selectedGroup.category.length > 0 && (
+                    <p>
+                      <strong>카테고리:</strong>{" "}
+                      {selectedGroup.category.map((tag, idx) => (
+                        <span key={idx} className="badge bg-info text-dark me-1">
+                          #{tag}
+                        </span>
+                      ))}
+                    </p>
+                  )}
 
                 <p>
                   <strong>위치:</strong>{" "}
@@ -363,6 +412,7 @@ const RecommendGroups = () => {
                     : "-"}
                 </p>
               </div>
+
               <div className="modal-footer">
                 <button
                   className="btn btn-secondary btn-sm"

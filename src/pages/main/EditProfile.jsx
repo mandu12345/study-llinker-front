@@ -1,3 +1,5 @@
+// src/pages/main/EditProfile.jsx
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
@@ -14,8 +16,6 @@ const EditProfile = () => {
     try {
       const res = await api.get("/users/profile");
       const data = res.data;
-
-      console.log("프로필 응답 데이터:", data);
 
       setUser({
         userId: data.userId,
@@ -39,7 +39,6 @@ const EditProfile = () => {
 
   useEffect(() => {
     fetchProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading || !user) {
@@ -57,7 +56,7 @@ const EditProfile = () => {
     setNewTag("");
   };
 
-  // 태그 제거
+  // 3. 태그 제거
   const handleRemoveTag = (tag) => {
     setUser({
       ...user,
@@ -65,16 +64,13 @@ const EditProfile = () => {
     });
   };
 
-  // 3. 정보 수정 요청 (이름 + 태그 + 비밀번호까지 한 번에)
+  // 4. 정보 수정 요청
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      // 새 비밀번호가 비어 있으면 null로 보내서, 백엔드에서 무시하게 처리
       const passwordToSend =
-        user.password && user.password.trim() !== ""
-          ? user.password
-          : null;
+        user.password && user.password.trim() !== "" ? user.password : null;
 
       await api.put(`/users/${user.userId}`, {
         username: user.username,
@@ -84,7 +80,7 @@ const EditProfile = () => {
         latitude: user.latitude,
         longitude: user.longitude,
         role: user.role,
-        password: passwordToSend, // ⭐ UserRequest.password
+        password: passwordToSend, 
       });
 
       alert("정보 수정이 완료되었습니다!");
@@ -97,12 +93,13 @@ const EditProfile = () => {
 
   return (
     <div className="container mt-4">
-      <h2>내 정보 수정</h2>
+      <h2 className="mb-4"><strong>내 정보 수정</strong></h2>
 
       <form onSubmit={handleSubmit} className="mt-3">
+
         {/* 아이디 */}
         <div className="mb-3">
-          <label className="form-label">아이디</label>
+          <label className="form-label text-start w-100">아이디</label>
           <input
             className="form-control"
             value={user.username}
@@ -113,7 +110,7 @@ const EditProfile = () => {
 
         {/* 이메일 */}
         <div className="mb-3">
-          <label className="form-label">이메일</label>
+          <label className="form-label text-start w-100">이메일</label>
           <input
             className="form-control"
             value={user.email}
@@ -124,7 +121,7 @@ const EditProfile = () => {
 
         {/* 이름 */}
         <div className="mb-3">
-          <label className="form-label">이름</label>
+          <label className="form-label text-start w-100">이름</label>
           <input
             className="form-control"
             value={user.name}
@@ -139,7 +136,7 @@ const EditProfile = () => {
 
         {/* 새 비밀번호 */}
         <div className="mb-3">
-          <label className="form-label">새 비밀번호</label>
+          <label className="form-label text-start w-100">새 비밀번호</label>
           <input
             type="password"
             className="form-control"
@@ -156,9 +153,9 @@ const EditProfile = () => {
 
         {/* 관심사 태그 */}
         <div className="mb-3">
-          <label className="form-label">관심사 태그</label>
+          <label className="form-label text-start w-100">관심사 태그</label>
 
-          <div className="mb-2">
+          <div className="mb-2 text-start w-100">
             {user.interestTags.map((tag, i) => (
               <span
                 key={i}
@@ -189,9 +186,19 @@ const EditProfile = () => {
           </div>
         </div>
 
-        <button type="submit" className="btn btn-primary">
+        {/* 수정 버튼 */}
+        <button
+          type="submit"
+          className="btn"
+          style={{
+            backgroundColor: "#a78bfa",
+            color: "white",
+            fontWeight: "bold",
+          }}
+        >
           정보 수정 완료
         </button>
+
       </form>
     </div>
   );
