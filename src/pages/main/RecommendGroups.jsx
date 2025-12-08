@@ -85,7 +85,6 @@ const RecommendGroups = () => {
 
       const rawGroups = res.data.groups || [];
 
-      // ⭐⭐ 여기서 groupId로 상세 정보 조회하여 description 보강
       const enrichedGroups = await Promise.all(
         rawGroups.map(async (g) => {
           const id = g.studyGroupId ?? g.groupId;
@@ -97,12 +96,12 @@ const RecommendGroups = () => {
 
             return {
               ...g,
-              description: detail.description, // ⭐ description 보강
+              description: detail.description, 
               category:
                 Array.isArray(detail.category)
                   ? detail.category
                   : typeof detail.category === "string"
-                    ? JSON.parse(detail.category) // ⭐ JSON 문자열 → 배열 변환
+                    ? JSON.parse(detail.category) 
                     : g.category,
             };
           } catch (err) {
@@ -139,47 +138,52 @@ const RecommendGroups = () => {
   };
 
   // 4) 지도 표시
-  useEffect(() => {
-    if (!window.kakao || !window.kakao.maps) return;
-    if (!Array.isArray(groups) || groups.length === 0) return;
+    useEffect(() => {
+      if (!window.kakao || !window.kakao.maps) return;
+      if (!Array.isArray(groups) || groups.length === 0) return;
 
-    window.kakao.maps.load(() => {
-      const container = document.getElementById("recommend-map");
-      if (!container) return;
+      window.kakao.maps.load(() => {
+        const container = document.getElementById("recommend-map");
+        if (!container) return;
 
-      // 지도 초기화
-      container.innerHTML = "";
+        container.innerHTML = "";
 
-      const first = groups[0];
-      const centerLat = first.lat || first.latitude;
-      const centerLng = first.lng || first.longitude;
+        const first = groups[0];
+        const centerLat = first.lat || first.latitude;
+        const centerLng = first.lng || first.longitude;
 
-      if (centerLat == null || centerLng == null) return;
+        if (centerLat == null || centerLng == null) return;
 
-      const map = new window.kakao.maps.Map(container, {
-        center: new window.kakao.maps.LatLng(centerLat, centerLng),
-        level: 5,
-      });
+        // 반경 → 지도 레벨 조절
+        let mapLevel = 5; 
+        if (radius === 5) mapLevel = 6;
+        if (radius === 10) mapLevel = 7;
 
-      groups.forEach((g) => {
-        const lat = g.lat || g.latitude;
-        const lng = g.lng || g.longitude;
-        if (lat == null || lng == null) return;
+        const map = new window.kakao.maps.Map(container, {
+          center: new window.kakao.maps.LatLng(centerLat, centerLng),
+          level: mapLevel, // 반경 기반 확대/축소
+        });
 
-        // ⭐ 스터디 전용 마커 이미지
-        const studyMarkerImg = new window.kakao.maps.MarkerImage(
-          "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png",
-          new window.kakao.maps.Size(24, 35)
-        );
+        groups.forEach((g) => {
+          const lat = g.lat || g.latitude;
+          const lng = g.lng || g.longitude;
+          if (lat == null || lng == null) return;
 
-        new window.kakao.maps.Marker({
-          position: new window.kakao.maps.LatLng(lat, lng),
-          map,
-          image: studyMarkerImg, 
+          // ⭐ 스터디 전용 마커 이미지
+          const studyMarkerImg = new window.kakao.maps.MarkerImage(
+            "https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png",
+            new window.kakao.maps.Size(24, 35)
+          );
+
+          new window.kakao.maps.Marker({
+            position: new window.kakao.maps.LatLng(lat, lng),
+            map,
+            image: studyMarkerImg,
+          });
         });
       });
-    });
-  }, [groups]);
+    }, [groups, radius]);
+
 
   // 5) 상세보기 모달 주소 변환
   useEffect(() => {
@@ -265,10 +269,7 @@ const RecommendGroups = () => {
           groups.map((group) => {
             const id = group.studyGroupId ?? group.groupId;
             const name = group.name ?? group.title;
-
-            // ⭐ description 통합 코드 제거하고 단일화
-            const description = group.description ?? "-"; // ← 여기만 남김
-
+            const description = group.description ?? "-"; 
             const distanceKm = group.distanceKm;
             const score = group.finalScore;
 
